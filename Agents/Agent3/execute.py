@@ -1,4 +1,4 @@
 from Agents.Utils import Choose_Action
 
 def Execute():
-    Choose_Action(1)
+    Choose_Action(3)
