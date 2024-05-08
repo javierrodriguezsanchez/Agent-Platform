@@ -9,13 +9,13 @@ class DNS:
         for agent in self.agents:
             self.agent_actions[agent]=self.search_actions_for_agent(agent)
 
-    def search_agents():
+    def search_agents(self):
         #Change for distributed
         agents = os.listdir(f"Agents")
         agents.pop()
         return agents
     
-    def search_actions_for_agent(agent):
+    def search_actions_for_agent(self,agent):
         #Change for distributed
         actions = os.listdir(f"Agents/{agent}/Actions")
         return actions
