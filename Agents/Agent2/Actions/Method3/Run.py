@@ -1,2 +1,5 @@
 def Run():
-    print("Accedido a method 3 de Agent 2")
+    return "Accedido a method 3 de Agent 2"
+
+def Description():
+    return "Descripcion: Metodo 3, Agente 2"
