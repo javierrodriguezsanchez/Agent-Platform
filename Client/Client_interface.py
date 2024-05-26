@@ -1,5 +1,5 @@
 import PySimpleGUI as sg
-from Client.Client_conection import GiveAgents, GiveActionsForAgent, ExcecuteAction
+from Client.Client_connection import GiveAgents, GiveActionsForAgent, ExecuteAction
 
 def Gui_run():
     agents=GiveAgents()
@@ -39,12 +39,12 @@ def Gui_run():
     sg.set_options(font=('Arial Bold',18))
 
     layout=[
-        [sg.Text('Agents plataform', font=('Helvetica',50))],
+        [sg.Text('Agents platform', font=('Helvetica',50))],
         [sg.Column(list(ShowAgents()), scrollable=True, 
-                vertical_scroll_only=True, key='scrollable_area',expand_x=True)]
+                vertical_scroll_only=True, key='scrollable_area',expand_x=True,expand_y=True)]
     ]
 
-    window2 = sg.Window('Agents plataform', layout, element_justification='c',finalize=True)
+    window2 = sg.Window('Agents platform', layout, element_justification='c',finalize=True)
     window2.Maximize()
 
 
@@ -61,6 +61,6 @@ def Gui_run():
             selection=SelectActionForAgent(event)#gets the categories
             if selection==None:
                 continue
-            ExcecuteAction(event,selection)
+            ExecuteAction(event,selection)
 
             

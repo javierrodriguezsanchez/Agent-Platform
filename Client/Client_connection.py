@@ -18,6 +18,6 @@ def GiveAgents():
 def GiveActionsForAgent(agent):
     return Actions[agent]
 
-def ExcecuteAction(agent, action):
+def ExecuteAction(agent, action):
     module = importlib.import_module(f"Agents.{agent}.execute")
     module.Execute_Action(action)

@@ -1,5 +1,4 @@
 import os
-import importlib
 
 class DNS:
     def __init__(self):
@@ -12,6 +11,7 @@ class DNS:
     def search_agents(self):
         #Change for distributed
         agents = os.listdir(f"Agents")
+        agents.pop()
         agents.pop()
         return agents
     
