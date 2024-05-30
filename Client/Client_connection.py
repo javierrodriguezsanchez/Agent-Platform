@@ -1,23 +1,17 @@
-from DNS.DNS_server import GetInfo
-import importlib
+from DNS.DNS_server import GetInfo, exec
 
-def AskDNS():
-    return GetInfo()
+Agents=[]
 
-def saveInfo(Agents,Actions):
-    pass
-def loadInfo(Agents,Actions):
-    pass
-
-Agents, Actions = AskDNS()
-saveInfo(Agents,Actions)
-
-def GiveAgents():
-    return Agents
+def Search(query):
+    global Agents
+    Agents=GetInfo(query)
+    return [a.name for a in Agents]
 
 def GiveActionsForAgent(agent):
-    return Actions[agent]
+    return [a.actions for a in Agents if a.name==agent][0]
+
+def Give_Agent(agent):
+    return [a for a in Agents if a.name==agent][0]
 
 def ExecuteAction(agent, action):
-    module = importlib.import_module(f"Agents.{agent}.execute")
-    module.Execute_Action(action)
+    exec(agent,action)
