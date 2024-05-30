@@ -5,7 +5,7 @@ Agents=[]
 def Search(query):
     global Agents
     Agents=GetInfo(query)
-    return [a.name for a in Agents]
+    return Agents
 
 def GiveActionsForAgent(agent):
     return [a.actions for a in Agents if a.name==agent][0]

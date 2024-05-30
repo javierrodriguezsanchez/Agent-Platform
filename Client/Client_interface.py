@@ -4,34 +4,37 @@ from Client.DataClient import Load, Save, Delete
 from itertools import islice
 
 def Gui_run():
-    agents = []
-    def SearchGUI(query, agents=agents):
+    agents=[]
+    def SearchGUI(query,agents=agents):
         #this function manage the query made by the user
         for i in Search(query):
             agents.append(i)
             yield Show(i)
 
-    def LoadAgents():
+    def LoadAgents(agents=agents):
         for i in Load():
+            agents.append(i)
             yield Show(i)
 
     def Show(agent):
         layout=[ 
             [
                 sg.Column([[
-                sg.Multiline('Descripción Genérica',expand_x=True,size=(75,3),no_scrollbar=False),
-                sg.Button('Save',button_color='Green',key='Save\0'+agent),
-                sg.Button('Use',button_color='Green',key='Use\0'+agent)
+                sg.Multiline(agent.description,expand_x=True,size=(75,3),no_scrollbar=False),
+                sg.Button('Save',button_color='Green',key='Save\0'+agent.name),
+                sg.Button('Use',button_color='Green',key='Use\0'+agent.name)
             ]],justification='r',expand_x=True)]]
         
-        return [sg.Frame(agent,layout=layout,element_justification='c',expand_x=True)]
+        return [sg.Frame(agent.name,layout=layout,element_justification='c',expand_x=True)]
 
 
     def SelectActionForAgent(agent):
-        actions=GiveActionsForAgent(agent)
+        actions=[x.actions for x in agents if x.name==agent][0]
+        #TODO: ADICIONAR DESCRIPCIONES
         layout=[[sg.Text(f"Actions for {agent}",font=('Helvetica',30))]]+[
             [sg.Button(action, key=action) for action in actions]
             ]
+        
         window2=sg.Window('Select Categories',layout=layout,element_justification='c')
 
         while True:
@@ -58,7 +61,7 @@ def Gui_run():
     layout= layout_base()+ [
         [sg.Text('Saved Agents', font=('Helvetica',30),pad=3)],
         [sg.Column(list(LoadAgents()), scrollable=True, 
-                vertical_scroll_only=True, key='scrollable_area',expand_x=True)]
+                vertical_scroll_only=True, key='scrollable_area',expand_x=True,expand_y=True)]
     ]
 
     window2 = sg.Window('Agents platform', layout, element_justification='c',finalize=True)
@@ -88,7 +91,7 @@ def Gui_run():
                 Delete(agent)
                 window2[event].update(button_color='green', text='Save')
                 continue
-            Save(agent)
+            Save([x for x in agents if agent==x.name][0])
             window2[event].update(button_color='red', text='Undo')
             window2[event].TextColor='black'
 

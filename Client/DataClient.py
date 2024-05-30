@@ -1,6 +1,14 @@
 import json
 from Client.Client_connection import Give_Agent
 
+class Agent:
+    def __init__(self,name,description,actions,actions_description):
+        self.name = name
+        self.description = description
+        self.actions = actions
+        self.actions_description = actions_description
+
+
 def Load():
     """
     Reads a list from a JSON file and returns it.
@@ -14,27 +22,23 @@ def Load():
     try:
         with open('Client/Save.json', 'r') as f:
             data = json.load(f)
-            if isinstance(data, list):
-                return data
-            else:
-                return []
+            return [Agent(x,data[x][0],data[x][1],data[x][2]) for x in data]
     except FileNotFoundError:
         return []
     
 
 def Save(agent):
-    Info=Give_Agent(agent)
-    Info=(Info.description,Info.actions,Info.actions_description)
+    Info=(agent.description,agent.actions,agent.actions_description)
     try:
         with open('Client/Save.json', 'r') as f:
             data = json.load(f)
-            if not agent in data:
-                data[agent]=Info
+            if not agent.name in data:
+                data[agent.name]=Info
             with open('Client/Save.json', 'w') as f:
                 json.dump(data, f)
     except FileNotFoundError:
         with open('Client/Save.json', 'w') as f:
-            json.dump({agent:Info}, f)
+            json.dump({agent.name:Info}, f)
 
 def Delete(agent):
     try:
