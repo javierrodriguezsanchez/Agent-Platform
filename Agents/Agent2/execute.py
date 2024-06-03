@@ -10,3 +10,7 @@ def Execute_Action(action):
 
 def Agent_Description():
     return "Este es el Agente 2"
+
+def Action_Description(action):
+    module = importlib.import_module(f"Agents.Agent{2}.Actions.{action}.Run")
+    return module.Description()
