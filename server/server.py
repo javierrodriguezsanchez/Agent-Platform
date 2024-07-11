@@ -6,6 +6,9 @@ class server:
     def __init__(self,GRP,PORT):
         self.MCAST_GRP = GRP
         self.MCAST_PORT = PORT
+        
+        #to edit
+        self.database=[]
     
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -29,21 +32,22 @@ class server:
     def handle_client(self, data, addr, sock):
         print(f"Mensaje recibido de {addr}: {data.decode()}")
         messege=data.decode().split('\1')
-        response=''
+        response='ERROR\1Protocolo incorrecto'
         if messege[0]=='QUERY':
-            response=self.GetInfo(messege[1])
+            response=self.give_agents(messege[1])
         elif messege[0]=='EXEC':
-            response=self.GiveAction(messege[1],messege[2],messege[3])
-
+            response=self.exec_action(messege[1],messege[2],messege[3])
+        elif messege[0]=='CREATE':
+            self.database.append((messege[1], addr))
+        
         # Enviar respuesta
-        sock.sendto(response.encode(), addr)
+        sock.sendto(f'SUCESS\1{response}'.encode(), addr)
 
-    def GetInfo(self,query): 
+    def give_agents(self,query): 
         #NOTE: CHANGE BY CONNECTION WITH DATABASE
-        #return [x.encode("utf-8") for x in self.agents]
-        return 'ultimate agent'
+        return str([x for x,_ in self.database])
     
-    def GiveAction(self,agent,action,args):
+    def exec_action(self,agent,action,args):
         '''
             To edit when distribute
         try:
