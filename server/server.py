@@ -79,7 +79,7 @@ class server:
 
         elif messege[0]=='UPDATE':
             exist=False
-            messege=str(addr)
+            response=str(addr)
             for i in range(len(self.database.agents)):
                 if self.database.agents[i][0] == messege[1]:
                     self.database.agents[i]=(messege[1],messege[2],addr)

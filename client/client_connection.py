@@ -65,7 +65,7 @@ class client:
                     logs.append(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
                 else:
                     logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
-                    self.agent_trheads.append(threading.Thread(target=self.run_agent,args=response[1]))
+                    self.agent_trheads.append(threading.Thread(target=self.run_agent,args=(agent,response[1])))
                     self.agent_trheads[-1].start()
                     
         save('agents',[x for x in agents if x not in to_remove])
