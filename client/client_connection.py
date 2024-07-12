@@ -10,9 +10,6 @@ class client:
         if self.SERVER_IP==None:
             self.search_server()
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-
     def search_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
@@ -28,6 +25,31 @@ class client:
         except socket.timeout:
             print("No se encontró ningún servidor")
             exit()
+
+    def update_agents(self,name):
+        agents=load('agents')
+        if agents==None:
+            return []
+        to_remove=[]
+        logs=[]
+        for agent in agents:
+            info=get_agent_info(name,agent)
+            if info==None:
+                logs.append(f"El agente {agent} dejo de existir o de cumplir con el formato deseado")
+                response=self.connect(f'DELETE\1{name}_{agent}').split('\1')
+                if response[0]=="ERROR":
+                    logs.append(f"Error al eliminarlo de la plataforma: {response[1]}")
+                else:
+                    logs.append(f"El agente {response[1]} fue eliminado satisfactoriamente de la plataforma")
+                    to_remove.append(agent)
+            else:
+                response=self.connect(f"UPDATE\1{name}_{agent}\1{str(info)}").split('\1')
+                if response[0]=='ERROR':
+                    logs.append(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
+                else:
+                    logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
+        save('agents',[x for x in agents if x not in to_remove])
+        return logs
 
     def connect(self,message):
         # Crear socket unicast para comunicaciones futuras
@@ -57,8 +79,7 @@ class client:
         if info==None:
             return "ERROR\1El agente no tiene el formato deseado"
         
-        #if ya esta creado: print("El agente ya esta creado") return
-        response=self.connect(f"CREATE\1{str(info)}")
+        response=self.connect(f"CREATE\1{info['name']}\1{str(info)}")
         decode_response=response.split('\1')
         if decode_response[0]=='ERROR':
            return response

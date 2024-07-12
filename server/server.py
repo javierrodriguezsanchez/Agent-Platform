@@ -58,13 +58,13 @@ class server:
         messege=data.decode().split('\1')
         
         if messege[0]=='QUERY':
-            response=str([x for x,_ in self.database.agents])
+            response=str([x for _,x,_ in self.database.agents])
         
         elif messege[0]=='EXEC':
             response=self.exec_action(messege[1],messege[2],messege[3])
         
         elif messege[0]=='CREATE':
-            self.database.agents.append((messege[1], addr))
+            self.database.agents.append((messege[1],messege[2], addr))
         
         elif messege[0]=='SUBSCRIBE':
             if messege[1] in [x[0] for x in self.database.users]:
@@ -77,6 +77,20 @@ class server:
             if (messege[1],messege[2]) not in self.database.users:
                 response='Password incorrecto'
                 sucess=False
+
+        elif messege[0]=='UPDATE':
+            exist=False
+            for i in range(len(self.database.agents)):
+                if self.database.agents[i][0] == messege[1]:
+                    self.database.agents[i]=(messege[1],messege[2],addr)
+                    exist=True
+                    break
+            if not exist:
+                self.database.agents.append((messege[1],messege[2], addr))
+
+        elif messege[0]=='DELETE':
+            self.database.agents=[x for x in self.database.agents if x[0]!=messege[1]]
+
         else:
             response='Protocolo incorrecto'
             sucess=False

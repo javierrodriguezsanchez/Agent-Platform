@@ -7,7 +7,7 @@ class client_interface:
 
     def run_interface(self):
         self.login()
-
+        self.update_agents_interface()
         option=0
         
         while option != 3:
@@ -57,11 +57,11 @@ class client_interface:
         try:
             option=int(input())
         except:
-            input("Opcion invalida, presiona enter para volver al menu principal")
+            input("Opcion invalida, presiona enter para volver al menu principal: ")
             return
             
         if option>count+1 or option<1:
-            input("Opcion invalida, presiona enter para volver al menu principal")
+            input("Opcion invalida, presiona enter para volver al menu principal: ")
             return
         
         if option !=count+1:
@@ -100,9 +100,22 @@ class client_interface:
         #print(response)
         #input("Press enter to continue")
 
+    def update_agents_interface(self):
+        print("Reiniciando agentes...")
+        logs=self.connection.update_agents(self.client_name)
+        for log in logs:
+            print(log)
+
+
     def create_agent_interface(self):
         agents=get_folders('Agents/')
         
+        created_agents=load('agents')
+        if created_agents==None:
+            created_agents=[]
+
+        agents=[x for x in agents if x not in created_agents]
+
         print('Elige al agente que deseas subir a la plataforma:')
         for i in range(len(agents)):
             print(f"{i+1}- {agents[i]}")
@@ -125,4 +138,8 @@ class client_interface:
             return
         
         print("El agente se ha creado correctamente")
+        
+        created_agents.append(agents[option-1])
+        save('agents',created_agents)
+
         input("Presiona enter para volver al menu principal")
