@@ -65,7 +65,7 @@ class client_interface:
             return
         
         if option !=count+1:
-            self.interact_interface(response[option-1])
+            self.interact_interface(decode_str(response[option-1]))
 
     def login(self):
         
@@ -89,16 +89,33 @@ class client_interface:
             self.client_name = name
             save('name',self.client_name)
             return
+    
     def interact_interface(self, agent):
-        '''
-        '''
-        #Show actions
-        #Select actions
+        num_actions=len(agent['actions'])
+        for i in range(num_actions):
+            print(f"{i+1}: {agent['actions'][i]}")
+            print(f"\t{agent['action description'][agent['actions'][i]]}")
+        print(f"Selecciona el numero del agente con el que desees interactuar o presiona {num_actions+1} para volver atras")
+        
+        try:
+            option=int(input())
+        except:
+            input("Opcion invalida, presiona enter para volver al menu principal: ")
+            return
+            
+        if option>num_actions+1 or option<1:
+            input("Opcion invalida, presiona enter para volver al menu principal: ")
+            return
+        
+        if option ==num_actions+1:
+            return
+        
         #Si tiene argumentos elegir argumentos
-        #Crear query
-        #response=interact_interface(self, option)
-        #print(response)
-        #input("Press enter to continue")
+        response=self.connection.interact(agent['name'],agent['actions'][option-1],()).split('\1')
+        if response[0]=='ERROR':
+            print(f"El siguiente error ha ocurrido: {response[1]}")
+        print(response[1])
+        input("Press enter to continue: ")
 
     def update_agents_interface(self):
         print("Reiniciando agentes...")

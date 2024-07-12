@@ -91,6 +91,8 @@ class server:
         elif messege[0]=='DELETE':
             self.database.agents=[x for x in self.database.agents if x[0]!=messege[1]]
 
+        elif messege[0]=='INTERACT':
+            response=self.exec_action(messege[1],messege[2],messege[3])
         else:
             response='Protocolo incorrecto'
             sucess=False

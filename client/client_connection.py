@@ -1,5 +1,6 @@
 import socket
 from client_utils import *
+import threading
 
 class client:
     def __init__(self, MCAST_GRP, MCAST_PORT, PORT):
@@ -7,6 +8,7 @@ class client:
         self.MCAST_PORT=MCAST_PORT
         self.PORT=PORT
         self.SERVER_IP=load('IP')
+        self.agent_trheads=[]
         if self.SERVER_IP==None:
             self.search_server()
 
@@ -25,6 +27,21 @@ class client:
         except socket.timeout:
             print("No se encontró ningún servidor")
             exit()
+
+    def connect(self,message):
+        # Crear socket unicast para comunicaciones futuras
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Enviar mensajes al servidor usando la dirección unicast
+        sock.sendto(message.encode(), (self.SERVER_IP, self.PORT))        
+        # Esperar respuesta
+        
+        sock.settimeout(5)
+        try:
+            data, _ = sock.recvfrom(1024)
+            return data.decode()
+        except socket.timeout:
+            self.search_server()
+            return self.connect(message)
 
     def update_agents(self,name):
         agents=load('agents')
@@ -48,31 +65,21 @@ class client:
                     logs.append(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
                 else:
                     logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
+                    self.agent_trheads.append(threading.Thread(target=self.run_agent,args=response[1]))
+                    self.agent_trheads[-1].start()
+                    
         save('agents',[x for x in agents if x not in to_remove])
         return logs
-
-    def connect(self,message):
-        # Crear socket unicast para comunicaciones futuras
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(message.encode(), (self.SERVER_IP, self.PORT))        
-        # Esperar respuesta
         
-        sock.settimeout(5)
-        try:
-            data, _ = sock.recvfrom(1024)
-            return data.decode()
-        except socket.timeout:
-            self.search_server()
-            return self.connect(message)
-
-        
-    def search(self,query):
-        return self.connect(f"QUERY\1{query}")
-    
     def start(self,name,password,SUBSCRIBE):
         action="SUBSCRIBE" if SUBSCRIBE else "LOGIN"
         return self.connect(f'{action}\1{name}\1{password}')
+    
+    def search(self,query):
+        return self.connect(f"QUERY\1{query}")
+    
+    def interact(self,agent,action, args):
+        return self.connect(f'INTERACT\1{agent}\1{action}\1{str(args)}')
 
     def create_agent(self,name,agent):
         info=get_agent_info(name,agent)
@@ -83,10 +90,12 @@ class client:
         decode_response=response.split('\1')
         if decode_response[0]=='ERROR':
            return response
-        #Crear hilo con la funcion run_agent
+        
+        self.agent_trheads.append(threading.Thread(target=self.run_agent,args=response[1]))
+        self.agent_trheads[-1].start()
         return response
     
-    def run_agent(self):
+    def run_agent(self,port):
         """
         """
         #Abre un servidor, busca el IP local y crea
