@@ -3,14 +3,16 @@ import struct
 import threading
 
 class server:
-    def __init__(self,GRP,PORT):
+    def __init__(self,GRP,PORT1,PORT2):
         self.MCAST_GRP = GRP
-        self.MCAST_PORT = PORT
+        self.MCAST_PORT = PORT1
+        self.PORT=PORT2
+        self.IP=socket.gethostbyname(socket.gethostname())
         
         #to edit
         self.database=[]
     
-    def run(self):
+    def mcast_run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -20,6 +22,19 @@ class server:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
         print("Servidor multicast esperando mensajes...")
+        while True:
+            data, addr = sock.recvfrom(1024)
+            # Enviar respuesta
+            sock.sendto(f'SUCESS\1{self.IP}'.encode(), addr)
+    
+    def run(self):
+        mcast_thread=threading.Thread(target=self.mcast_run)
+        mcast_thread.start()
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(('', self.PORT))
+        
+        print("Servidor unicast esperando mensajes...")
 
         while True:
             data, addr = sock.recvfrom(1024)
@@ -41,6 +56,7 @@ class server:
             self.database.append((messege[1], addr))
         
         # Enviar respuesta
+        print(f'Enviando {response} a {addr}')
         sock.sendto(f'SUCESS\1{response}'.encode(), addr)
 
     def give_agents(self,query): 

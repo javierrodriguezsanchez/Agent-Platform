@@ -2,23 +2,46 @@ import socket
 from client_utils import *
 
 class client:
-    def __init__(self,MCAST_GRP,MCAST_PORT):
+    def __init__(self, MCAST_GRP, MCAST_PORT, PORT):
         self.MCAST_GRP=MCAST_GRP
         self.MCAST_PORT=MCAST_PORT
+        self.PORT=PORT
+        self.SERVER_IP=None
+        self.search_server()
+
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
+    def search_server(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+
+        print("Buscando servidor...")
+        sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        # Esperar respuesta del servidor
+        try:
+            data, server = sock.recvfrom(1024)
+            self.SERVER_IP = data.decode().split('\1')[1]
+            print(f"Servidor encontrado en {self.SERVER_IP}")
+        except socket.timeout:
+            print("No se encontró ningún servidor")
+            exit()
+
     def connect(self,message):
-        self.sock.sendto(message.encode(), (self.MCAST_GRP, self.MCAST_PORT))
-        print(f"Mensaje enviado: {message}")
+        # Crear socket unicast para comunicaciones futuras
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Enviar mensajes al servidor usando la dirección unicast
+        sock.sendto(message.encode(), (self.SERVER_IP, self.PORT))        
         # Esperar respuesta
         self.sock.settimeout(5)
         try:
-            data, server = self.sock.recvfrom(1024)
+            data, _ = sock.recvfrom(1024)
             return data.decode()
         except socket.timeout:
-            return 'ERROR\1TIMEOUT'
-    
+            self.search_server()
+            return self.connect(message)
+
+        
     def search(self,query):
         return self.connect(f"QUERY\1{query}")
 
