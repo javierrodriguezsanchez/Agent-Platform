@@ -79,7 +79,7 @@ class client:
         return self.connect(f"QUERY\1{query}")
     
     def interact(self,agent,action, args):
-        return self.connect(f'INTERACT\1{agent}\1{action}\1{str(args)}')
+        return self.connect(f'EXEC\1{agent}\1{action}\1{str(args)}')
 
     def create_agent(self,name,agent):
         info=get_agent_info(name,agent)
@@ -91,11 +91,31 @@ class client:
         if decode_response[0]=='ERROR':
            return response
         
-        self.agent_trheads.append(threading.Thread(target=self.run_agent,args=response[1]))
+        self.agent_trheads.append(threading.Thread(target=self.run_agent,args=(agent,decode_response[1])))
         self.agent_trheads[-1].start()
         return response
     
-    def run_agent(self,port):
-        """
-        """
-        #Abre un servidor, busca el IP local y crea
+    def run_agent(self,name, ADRR):
+        _, PORT=decode_str(ADRR)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(('', PORT))
+        
+        while True:
+            data, addr = sock.recvfrom(1024)
+            
+            # Crear un nuevo hilo para manejar la interacción del cliente
+            client_thread = threading.Thread(target=self.handle_agent_call, args=(name, data, addr, sock))
+            client_thread.start()
+
+    def handle_agent_call(self, name, data, addr,sock):
+        request=data.decode().split('\1')
+        if request[0]!='EXEC':
+            sock.sendto('ERROR: Protocolo incorrecto'.encode(), addr)
+            return
+        
+        response=excecute_agent_action(name,request[2],request[3])
+        if response==None:
+            response='ERROR\1Formato incorrecto'
+        else:
+            response=f'SUCESS\1{response}'
+        sock.sendto(response.encode(), addr)

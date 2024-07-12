@@ -32,6 +32,13 @@ def get_agent_info(name,agent):
     except:
         return None
 
+def excecute_agent_action(agent,action,args):
+    try:
+        module = importlib.import_module(f"Agents.{agent}.Actions.{action}.Run")
+        return module.Run()
+    except:
+        return None
+
 def decode_str(data):
     return ast.literal_eval(data)
 

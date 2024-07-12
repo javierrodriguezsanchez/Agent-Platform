@@ -60,11 +60,10 @@ class server:
         if messege[0]=='QUERY':
             response=str([x for _,x,_ in self.database.agents])
         
-        elif messege[0]=='EXEC':
-            response=self.exec_action(messege[1],messege[2],messege[3])
-        
         elif messege[0]=='CREATE':
             self.database.agents.append((messege[1],messege[2], addr))
+            response=str(addr)
+            print(addr)
         
         elif messege[0]=='SUBSCRIBE':
             if messege[1] in [x[0] for x in self.database.users]:
@@ -80,6 +79,7 @@ class server:
 
         elif messege[0]=='UPDATE':
             exist=False
+            messege=str(addr)
             for i in range(len(self.database.agents)):
                 if self.database.agents[i][0] == messege[1]:
                     self.database.agents[i]=(messege[1],messege[2],addr)
@@ -91,8 +91,23 @@ class server:
         elif messege[0]=='DELETE':
             self.database.agents=[x for x in self.database.agents if x[0]!=messege[1]]
 
-        elif messege[0]=='INTERACT':
-            response=self.exec_action(messege[1],messege[2],messege[3])
+        elif messege[0]=='EXEC':
+            for i in range(len(self.database.agents)):
+                if self.database.agents[i][0] == messege[1]:
+                    response=self.exec_action(messege[1],messege[2],messege[3],self.database.agents[i][2])
+                    response=response.split('\1')
+                    print()
+                    print(response)
+                    print()
+                    if response[0]=="ERROR":
+                        sucess==False
+                        response=response[1]
+                    else:
+                        response=response[1]
+            if response=='':
+                response="El agente no existe"
+                sucess=False
+        
         else:
             response='Protocolo incorrecto'
             sucess=False
@@ -102,19 +117,17 @@ class server:
         result='SUCESS' if sucess else 'ERROR'
         sock.sendto(f'{result}\1{response}'.encode(), addr)
     
-    def exec_action(self,agent,action,args):
-        '''
-            To edit when distribute
+    def exec_action(self,agent,action,args, addr):
+        messege=f'EXEC\1{agent}\1{action}\1{args}'
+        
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Enviar mensajes al servidor usando la dirección unicast
+        sock.sendto(messege.encode(), addr)        
+        # Esperar respuesta
+        
+        sock.settimeout(5)
         try:
-            with open(f'Agents/{agent}/{action}/Run.y', 'r') as archivo:
-                codigo_python = archivo.read()
-            return codigo_python
-        except FileNotFoundError:
-            print(f"Error: El archivo no se encontró.")
-        except IOError:
-            print("Error: Ocurrió un problema al leer el archivo.")
-        except Exception as e:
-            print(f"Error inesperado: {e}")
-            raise
-        '''
-        return '2'
+            data, _ = sock.recvfrom(1024)
+            return data.decode()
+        except socket.timeout:
+            return 'ERROR\1Time out'
