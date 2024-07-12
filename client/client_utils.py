@@ -19,12 +19,12 @@ def get_folders(ruta):
         print(f"Error: No tienes permisos para acceder a la ruta '{ruta}'.")
         return []
     
-def get_agent_info(agent):
+def get_agent_info(name,agent):
     try:
         module = importlib.import_module(f"Agents.{agent}.execute")
         
         info=dict()
-        info['name']=agent
+        info['name']=f'{name}_{agent}'
         info['description']=module.Agent_Description()
         info['actions']=get_folders(f"Agents/{agent}/Actions")
         info['action description']={x:module.Action_Description(x) for x in info['actions']}
@@ -34,3 +34,34 @@ def get_agent_info(agent):
 
 def decode_str(data):
     return ast.literal_eval(data)
+
+def load(x):
+    try:
+        with open(os.path.join('data.json')) as f:
+            data = json.load(f)
+    except:
+        # Crear un nuevo diccionario vacío
+        data = {}
+        # Crear el archivo JSON con el diccionario vacío
+        with open('data.json', 'w') as archivo:
+            json.dump(data, archivo)
+    
+    if x not in data.keys():
+        return None
+    
+    return data[x]
+
+def save(field,content):
+    try:
+        with open(os.path.join('data.json')) as f:
+            data = json.load(f)
+    except:
+        # Crear un nuevo diccionario vacío
+        data = {}
+        # Crear el archivo JSON con el diccionario vacío
+        with open('data.json', 'w') as archivo:
+            json.dump(data, archivo)
+    data[field]=content
+    # Crear el archivo JSON con el diccionario vacío
+    with open('data.json', 'w') as archivo:
+        json.dump(data, archivo)

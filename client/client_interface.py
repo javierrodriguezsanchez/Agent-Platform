@@ -1,101 +1,128 @@
-from client_connection import client
 from client_utils import *
 
-def run_interface(client_instance:client):
-    
-    option=0
-    
-    while option != 3:
-        print("Bienvenido a la plataforma multiagente")
-        print("Seleccione una opcion")
-        print("1- Buscar agentes disponibles")
-        print("2- Crear tu propio agente")
-        print("3- Salir de la plataforma")
+class client_interface:
+    def __init__(self,connection):
+        self.connection=connection
+        self.client_name=load('name')
+
+    def run_interface(self):
+        self.login()
+
+        option=0
+        
+        while option != 3:
+            print(f"Bienvenido {self.client_name}")
+            print("Seleccione una opcion")
+            print("1- Buscar agentes disponibles")
+            print("2- Crear tu propio agente")
+            print("3- Salir de la plataforma")
+            try:
+                option=int(input())
+            except:
+                print("Opcion invalida, vuelva a intentarlo")
+                continue
+            
+            if option>3 or option<1:
+                print("Opcion invalida, vuelva a intentarlo")
+            
+            if option==1:
+                self.search_interface()
+
+            if option==2:
+                self.create_agent_interface()
+
+    def search_interface(self):
+
+        print("Introduce tu criterio de busqueda o presiona ~~~ para volver atras:")
+        query=input()
+        if query=="~~~":
+            return
+        
+        response=self.connection.search(query).split('\1')
+        
+        if response[0]=="ERROR":
+            print(f"El siguiente error ha ocurrido: {response[1]}")
+            input("Presiona enter para volver al menu principal")
+            return
+        
+        response=decode_str(response[1])
+        
+        count=len(response)
+        for i in range(count):
+            agent=decode_str(response[i])
+            print(f"{i+1}: {agent['name']}")
+            print(f"\t{agent['description']}")
+        print(f"Selecciona el numero del agente con el que desees interactuar o presiona {count+1} para volver atras")
+        
         try:
             option=int(input())
         except:
-            print("Opcion invalida, vuelva a intentarlo")
-            continue
+            input("Opcion invalida, presiona enter para volver al menu principal")
+            return
+            
+        if option>count+1 or option<1:
+            input("Opcion invalida, presiona enter para volver al menu principal")
+            return
         
-        if option>3 or option<1:
-            print("Opcion invalida, vuelva a intentarlo")
+        if option !=count+1:
+            self.interact_interface(response[option-1])
+
+    def login(self):
         
-        if option==1:
-            search_interface(client_instance)
+        print("Bienvenido a la plataforma multiagente")
+        
+        while True:
+            name=self.client_name
+            if self.client_name==None:
+                name=input("Introduce su nombre de usuario: ")
+                if '\1' in name:
+                    print("Nombre invalido. Intentelo de nuevo")
+                    continue
+            password=input('Introduzca su password: ')
+            if '\1' in password:
+                print("Password invalida. Intentelo de nuevo")
+                continue
+            response=self.connection.start(name,password,self.client_name==None).split('\1')
+            if response[0]=='ERROR':
+                print(f"El siguiente error ha ocurrido: {response[1]}")
+                continue
+            self.client_name = name
+            save('name',self.client_name)
+            return
+    def interact_interface(self, agent):
+        '''
+        '''
+        #Show actions
+        #Select actions
+        #Si tiene argumentos elegir argumentos
+        #Crear query
+        #response=interact_interface(self, option)
+        #print(response)
+        #input("Press enter to continue")
 
-        if option==2:
-            create_agent_interface(client_instance)
-
-def search_interface(client_instance):
-
-    print("Introduce tu criterio de busqueda o presiona ~~~ para volver atras:")
-    query=input()
-    if query=="~~~":
-        return
-    
-    response=client_instance.search(query).split('\1')
-    
-    if response[0]=="ERROR":
-        print(f"El siguiente error ha ocurrido: {response[1]}")
+    def create_agent_interface(self):
+        agents=get_folders('Agents/')
+        
+        print('Elige al agente que deseas subir a la plataforma:')
+        for i in range(len(agents)):
+            print(f"{i+1}- {agents[i]}")
+        print(f'Escribe {len(agents)+1} para volver al menu principal')
+        try:
+            option=int(input())
+        except:
+            input("Opcion invalida, presiona enter para volver al menu principal")
+            return
+        if option>len(agents)+1 or option<1:
+            input("Opcion invalida, presiona enter para volver al menu principal")
+            return
+        if option ==len(agents)+1:
+            return
+        
+        response=self.connection.create_agent(self.client_name,agents[option-1]).split('\1')
+        if response[0]=="ERROR":
+            print(f"El siguiente error ha ocurrido: {response[1]}")
+            input("Presiona enter para volver al menu principal")
+            return
+        
+        print("El agente se ha creado correctamente")
         input("Presiona enter para volver al menu principal")
-        return
-    
-    response=decode_str(response[1])
-    
-    count=len(response)
-    for i in range(count):
-        agent=decode_str(response[i])
-        print(f"{i+1}: {agent['name']}")
-        print(f"\t{agent['description']}")
-    print(f"Selecciona el numero del agente con el que desees interactuar o presiona {count+1} para volver atras")
-    
-    try:
-        option=int(input())
-    except:
-        input("Opcion invalida, presiona enter para volver al menu principal")
-        return
-        
-    if option>count+1 or option<1:
-        input("Opcion invalida, presiona enter para volver al menu principal")
-        return
-    
-    if option !=count+1:
-        interact_interface(client_instance, response[option-1])
-
-def interact_interface(client_instance, agent):
-    '''
-    '''
-    #Show actions
-    #Select actions
-    #Si tiene argumentos elegir argumentos
-    #Crear query
-    #response=interact_interface(client_instance, option)
-    #print(response)
-    #input("Press enter to continue")
-
-def create_agent_interface(client_instance):
-    agents=get_folders('Agents/')
-    
-    print('Elige al agente que deseas subir a la plataforma:')
-    for i in range(len(agents)):
-        print(f"{i+1}- {agents[i]}")
-    print(f'Escribe {len(agents)+1} para volver al menu principal')
-    try:
-        option=int(input())
-    except:
-        input("Opcion invalida, presiona enter para volver al menu principal")
-        return
-    if option>len(agents)+1 or option<1:
-        input("Opcion invalida, presiona enter para volver al menu principal")
-        return
-    if option ==len(agents)+1:
-        return
-    
-    response=client_instance.create_agent(agents[option-1]).split('\1')
-    if response[0]=="ERROR":
-        print(f"El siguiente error ha ocurrido: {response[1]}")
-        input("Presiona enter para volver al menu principal")
-        return
-    
-    print("El agente se ha creado correctamente")
-    input("Presiona enter para volver al menu principal")

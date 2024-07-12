@@ -2,6 +2,11 @@ import socket
 import struct
 import threading
 
+class DB:
+    def __init__(self):
+        self.users=[]
+        self.agents=[]
+
 class server:
     def __init__(self,GRP,PORT1,PORT2):
         self.MCAST_GRP = GRP
@@ -10,7 +15,7 @@ class server:
         self.IP=socket.gethostbyname(socket.gethostname())
         
         #to edit
-        self.database=[]
+        self.database=DB()
     
     def mcast_run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -45,23 +50,41 @@ class server:
             client_thread.start()
 
     def handle_client(self, data, addr, sock):
+        
         print(f"Mensaje recibido de {addr}: {data.decode()}")
+        
+        sucess=True
+        response=''
         messege=data.decode().split('\1')
-        response='ERROR\1Protocolo incorrecto'
+        
         if messege[0]=='QUERY':
-            response=self.give_agents(messege[1])
+            response=str([x for x,_ in self.database.agents])
+        
         elif messege[0]=='EXEC':
             response=self.exec_action(messege[1],messege[2],messege[3])
-        elif messege[0]=='CREATE':
-            self.database.append((messege[1], addr))
         
+        elif messege[0]=='CREATE':
+            self.database.agents.append((messege[1], addr))
+        
+        elif messege[0]=='SUBSCRIBE':
+            if messege[1] in [x[0] for x in self.database.users]:
+                response='Un usuario con ese nombre ya existe'
+                sucess=False
+            else:
+                self.database.users.append((messege[1],messege[2]))
+        
+        elif messege[0]=='LOGIN':
+            if (messege[1],messege[2]) not in self.database.users:
+                response='Password incorrecto'
+                sucess=False
+        else:
+            response='Protocolo incorrecto'
+            sucess=False
+
         # Enviar respuesta
         print(f'Enviando {response} a {addr}')
-        sock.sendto(f'SUCESS\1{response}'.encode(), addr)
-
-    def give_agents(self,query): 
-        #NOTE: CHANGE BY CONNECTION WITH DATABASE
-        return str([x for x,_ in self.database])
+        result='SUCESS' if sucess else 'ERROR'
+        sock.sendto(f'{result}\1{response}'.encode(), addr)
     
     def exec_action(self,agent,action,args):
         '''
