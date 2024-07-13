@@ -2,11 +2,13 @@ def get_info():
     return {
         'name':'Multiplicador',
         'description':'Este agente sirve para multiplicar',
-        'actions':['multiplicate','multiplicate_list','use_sum_multiplication'],
+        'actions':['multiplicate','multiplicate_list',
+                   #'use_sum_multiplication'
+                ],
         'action description':{
             'multiplicate':'Return the multiplication of the two entries',
-            'multiplicate_list':'Return the multiplication of a collection',
-            'use_sum_multiplication': "Usa la suma para multiplicar"
+            'multiplicate_list':'Return the multiplication of a collection'
+            #,'use_sum_multiplication': "Usa la suma para multiplicar"
         }
     }
 
@@ -23,7 +25,7 @@ class Multiplicador:
         for x in args:
             result*=x
         return result
-    
+'''
     def use_sum_multiplication(self, call_agent, args):
         a, b= args
         a=int(a)
@@ -36,3 +38,4 @@ class Multiplicador:
                 return None
             count=int(call_results[1])
         return str(count)
+'''
