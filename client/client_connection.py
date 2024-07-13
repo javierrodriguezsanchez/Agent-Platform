@@ -72,7 +72,7 @@ class client:
             
             logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
             self.agents[info['name']]=get_agent_instance(agent)
-                  
+
         save('agents',[x for x in agents if x not in to_remove])
         return logs
         
@@ -116,9 +116,9 @@ class client:
             sock.sendto('ERROR: Protocolo incorrecto'.encode(), addr)
             return
         with self.lock:
-            response=getattr(self.agents[request[1]],request[2])(decode_str(request[3]))
+            response=getattr(self.agents[request[1]],request[2])(self.interact, decode_str(request[3]))
         if response==None:
-            response='ERROR\1Formato incorrecto'
+            response='ERROR\1La accion no se pudo llevar a cabo'
         else:
             response=f'SUCESS\1{response}'
         sock.sendto(response.encode(), addr)

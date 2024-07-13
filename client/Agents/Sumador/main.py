@@ -1,5 +1,3 @@
-from agent import agent
-
 def get_info():
     return {
         'name':'Sumador',
@@ -12,18 +10,18 @@ def get_info():
         }
     }
 
-class Sumador(agent):
+class Sumador:
     def __init__(self):
         return
     
-    def sum(self,args):
+    def sum(self,call_agent, args):
         a, b= args
         return str(int(a)+int(b))
     
-    def sum_list(self,args):
+    def sum_list(self,call_agent, args):
         return sum(args)
     
-    def sum_range(self, args):
+    def sum_range(self,call_agent, args):
         if len(args)==3:
             a,b,c=args
         if len(args)==2:
