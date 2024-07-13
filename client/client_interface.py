@@ -110,8 +110,9 @@ class client_interface:
         if option ==num_actions+1:
             return
         
-        #Si tiene argumentos elegir argumentos
-        response=self.connection.interact(agent['name'],agent['actions'][option-1],()).split('\1')
+        print('Write the parameters')
+        args=input()
+        response=self.connection.interact(agent['name'],agent['actions'][option-1],args).split('\1')
         if response[0]=='ERROR':
             print(f"El siguiente error ha ocurrido: {response[1]}")
         print(response[1])
@@ -122,7 +123,6 @@ class client_interface:
         logs=self.connection.update_agents(self.client_name)
         for log in logs:
             print(log)
-
 
     def create_agent_interface(self):
         agents=get_folders('Agents/')

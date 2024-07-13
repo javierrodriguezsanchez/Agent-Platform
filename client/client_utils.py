@@ -21,21 +21,24 @@ def get_folders(ruta):
     
 def get_agent_info(name,agent):
     try:
-        module = importlib.import_module(f"Agents.{agent}.execute")
-        
-        info=dict()
-        info['name']=f'{name}_{agent}'
-        info['description']=module.Agent_Description()
-        info['actions']=get_folders(f"Agents/{agent}/Actions")
-        info['action description']={x:module.Action_Description(x) for x in info['actions']}
+        module = importlib.import_module(f"Agents.{agent}.main")
+        info=module.get_info()
+        info['name']=name+'_'+agent
         return info
     except:
         return None
 
 def excecute_agent_action(agent,action,args):
     try:
-        module = importlib.import_module(f"Agents.{agent}.Actions.{action}.Run")
-        return module.Run()
+        args=decode_str(args)
+
+        # Importar la biblioteca de forma dinámica
+        my_module = importlib.import_module(f'Agents.{agent}.main')
+
+        # Crear un objeto de la clase MyClass
+        my_class = getattr(my_module, agent)
+        my_object = my_class()
+        return getattr(my_object, action)(args)
     except:
         return None
 
