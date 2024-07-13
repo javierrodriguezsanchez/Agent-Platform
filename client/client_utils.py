@@ -28,20 +28,6 @@ def get_agent_info(name,agent):
     except:
         return None
 
-def excecute_agent_action(agent,action,args):
-    try:
-        args=decode_str(args)
-
-        # Importar la biblioteca de forma dinámica
-        my_module = importlib.import_module(f'Agents.{agent}.main')
-
-        # Crear un objeto de la clase MyClass
-        my_class = getattr(my_module, agent)
-        my_object = my_class()
-        return getattr(my_object, action)(args)
-    except:
-        return None
-
 def decode_str(data):
     return ast.literal_eval(data)
 
@@ -75,3 +61,8 @@ def save(field,content):
     # Crear el archivo JSON con el diccionario vacío
     with open('data.json', 'w') as archivo:
         json.dump(data, archivo)
+
+def get_agent_instance(agent):
+    my_module=importlib.import_module(f'Agents.{agent}.main')
+    my_class = getattr(my_module, agent)
+    return my_class()

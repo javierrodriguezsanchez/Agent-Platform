@@ -3,14 +3,18 @@ from client_utils import *
 import threading
 
 class client:
-    def __init__(self, MCAST_GRP, MCAST_PORT, PORT):
+    def __init__(self, MCAST_GRP, MCAST_PORT, PORT, AGENT_PORT):
         self.MCAST_GRP=MCAST_GRP
         self.MCAST_PORT=MCAST_PORT
         self.PORT=PORT
+        self.AGENTS_PORT=AGENT_PORT
         self.SERVER_IP=load('IP')
-        self.agent_trheads=[]
+        self.agents=dict()
+        self.lock = threading.Lock()
         if self.SERVER_IP==None:
             self.search_server()
+        self.agent_server_thread = threading.Thread(target=self.run_agents)
+        self.agent_server_thread.start()
 
     def search_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -56,18 +60,19 @@ class client:
                 response=self.connect(f'DELETE\1{name}_{agent}').split('\1')
                 if response[0]=="ERROR":
                     logs.append(f"Error al eliminarlo de la plataforma: {response[1]}")
-                else:
-                    logs.append(f"El agente {response[1]} fue eliminado satisfactoriamente de la plataforma")
-                    to_remove.append(agent)
-            else:
-                response=self.connect(f"UPDATE\1{name}_{agent}\1{str(info)}").split('\1')
-                if response[0]=='ERROR':
-                    logs.append(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
-                else:
-                    logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
-                    self.agent_trheads.append(threading.Thread(target=self.run_agent,args=(agent,response[1])))
-                    self.agent_trheads[-1].start()
-                    
+                    continue
+                logs.append(f"El agente {response[1]} fue eliminado satisfactoriamente de la plataforma")
+                to_remove.append(agent)
+                continue
+            
+            response=self.connect(f"UPDATE\1{name}_{agent}\1{str(info)}").split('\1')
+            if response[0]=='ERROR':
+                logs.append(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
+                continue
+            
+            logs.append(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
+            self.agents[info['name']]=get_agent_instance(agent)
+                  
         save('agents',[x for x in agents if x not in to_remove])
         return logs
         
@@ -91,29 +96,27 @@ class client:
         if decode_response[0]=='ERROR':
            return response
         
-        self.agent_trheads.append(threading.Thread(target=self.run_agent,args=(agent,decode_response[1])))
-        self.agent_trheads[-1].start()
+        with self.lock:
+            self.agents[info['name']]=get_agent_instance(agent)
         return response
     
-    def run_agent(self,name, ADRR):
-        _, PORT=decode_str(ADRR)
+    def run_agents(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('', PORT))
-        
+        sock.bind(('', self.AGENTS_PORT))
+        print("Corriendo servidor de agentes por el puerto ", self.AGENTS_PORT)
         while True:
             data, addr = sock.recvfrom(1024)
-            
             # Crear un nuevo hilo para manejar la interacción del cliente
-            client_thread = threading.Thread(target=self.handle_agent_call, args=(name, data, addr, sock))
-            client_thread.start()
+            agent_thread = threading.Thread(target=self.handle_agent_call, args=(data, addr, sock))
+            agent_thread.start()
 
-    def handle_agent_call(self, name, data, addr,sock):
+    def handle_agent_call(self, data, addr,sock):
         request=data.decode().split('\1')
         if request[0]!='EXEC':
             sock.sendto('ERROR: Protocolo incorrecto'.encode(), addr)
             return
-        
-        response=excecute_agent_action(name,request[2],request[3])
+        with self.lock:
+            response=getattr(self.agents[request[1]],request[2])(decode_str(request[3]))
         if response==None:
             response='ERROR\1Formato incorrecto'
         else:

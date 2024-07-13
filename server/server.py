@@ -8,10 +8,11 @@ class DB:
         self.agents=[]
 
 class server:
-    def __init__(self,GRP,PORT1,PORT2):
+    def __init__(self,GRP,PORT1,PORT2,AGENTS_PORT):
         self.MCAST_GRP = GRP
         self.MCAST_PORT = PORT1
         self.PORT=PORT2
+        self.AGENTS_PORT=AGENTS_PORT
         self.IP=socket.gethostbyname(socket.gethostname())
         
         #to edit
@@ -50,9 +51,6 @@ class server:
             client_thread.start()
 
     def handle_client(self, data, addr, sock):
-        
-        print(f"Mensaje recibido de {addr}: {data.decode()}")
-        
         sucess=True
         response=''
         messege=data.decode().split('\1')
@@ -61,7 +59,7 @@ class server:
             response=str([x for _,x,_ in self.database.agents])
         
         elif messege[0]=='CREATE':
-            self.database.agents.append((messege[1],messege[2], addr))
+            self.database.agents.append((messege[1],messege[2], addr[0]))
             response=str(addr)
             print(addr)
         
@@ -82,11 +80,11 @@ class server:
             response=str(addr)
             for i in range(len(self.database.agents)):
                 if self.database.agents[i][0] == messege[1]:
-                    self.database.agents[i]=(messege[1],messege[2],addr)
+                    self.database.agents[i]=(messege[1],messege[2],addr[0])
                     exist=True
                     break
             if not exist:
-                self.database.agents.append((messege[1],messege[2], addr))
+                self.database.agents.append((messege[1],messege[2], addr[0]))
 
         elif messege[0]=='DELETE':
             self.database.agents=[x for x in self.database.agents if x[0]!=messege[1]]
@@ -96,9 +94,6 @@ class server:
                 if self.database.agents[i][0] == messege[1]:
                     response=self.exec_action(messege[1],messege[2],messege[3],self.database.agents[i][2])
                     response=response.split('\1')
-                    print()
-                    print(response)
-                    print()
                     if response[0]=="ERROR":
                         sucess==False
                         response=response[1]
@@ -117,12 +112,16 @@ class server:
         result='SUCESS' if sucess else 'ERROR'
         sock.sendto(f'{result}\1{response}'.encode(), addr)
     
-    def exec_action(self,agent,action,args, addr):
+    def exec_action(self,agent,action,args, IP):
         messege=f'EXEC\1{agent}\1{action}\1{args}'
         
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(messege.encode(), addr)        
+        print(IP)
+        print(type(IP))
+        print(args)
+        print(type(args))
+        sock.sendto(messege.encode(), (IP, self.AGENTS_PORT))        
         # Esperar respuesta
         
         sock.settimeout(5)
