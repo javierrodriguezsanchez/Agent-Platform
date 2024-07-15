@@ -2,12 +2,16 @@ import socket
 import struct
 import threading
 import ast
+from DB import DB, parseDB
+from DB_aux import *
+import time
 
 default_ip=['172.17.0.2']
 
 class DB_connection:
     def __init__(self,port,mcast_port,mcast_grp):
         # Basic information about the node
+        # --------------------------------
         self.IP = socket.gethostbyname(socket.gethostname())
         self.PORT=port
         self.MCAST_PORT=mcast_port
@@ -16,27 +20,37 @@ class DB_connection:
 
         # Gets the information about the rest of the nodes
         # ------------------------------------------------
-        self.NODES=[]
-        for ip in default_ip:
-            #using cache nodes
-            nodes=self.connect('GET_NODES',ip)
-            if nodes!=None:
-                break
+        self.NODES=self.get_nodes()
 
-        if nodes==None:
-            #using multicast
-            ip=self.search_nodes()
-            if ip != None:
-                nodes=self.connect('GET_NODES',ip)
+        if self.NODES==[]:
+            print("No se pudo hallar ningun nodo")
+            self.SUCCESSOR=self.IP
+            self.ANTECCESSOR=self.IP
+            self.NODES.append(self.IP)
+        elif len(self.NODES)==1:
+            self.SUCCESSOR=self.NODES[0]
+            self.ANTECCESSOR=self.NODES[0]
+            if self.NODES[0]>self.IP:
+                self.NODES=[self.IP]+self.NODES
+            else:
+                self.NODES.append(self.IP)
+        else:
+            successor_pos=get_successor(self.NODES, self.IP)
+            self.SUCCESSOR=self.NODES[successor_pos if successor_pos<len(self.NODES) else 0]
+            self.ANTECCESSOR=self.NODES[successor_pos-1]
+            self.NODES=self.NODES[:successor_pos]+[self.IP]+self.NODES[successor_pos:]
         
-        if nodes!=None:
-            print(nodes)
-            self.NODES=ast.literal_eval(nodes)
+        print(f"Lista de nodos actuales: {self.NODES}")
+        print(f"Mi sucesor es {self.SUCCESSOR}")
+        print(f"Mi antecesor es {self.ANTECCESSOR}")
+
+        #Updating database and finger table
+        #----------------------------------
+        if len(self.NODES)!=1:
+            self.DB_NODE=parseDB(self.connect('MIGRATE',self.SUCCESSOR))
             self.join()
         else:
-            print("No se pudo hallar ningun nodo")
-        self.NODES.append(self.IP)
-        print(f"Lista de nodos actuales: {self.NODES}")
+            self.DB_NODE=DB()
 
         #Running the server and the heartbeats
         #-------------------------------------
@@ -128,13 +142,38 @@ class DB_connection:
         answer=self.create_response(messege, addr)
         sock.sendto(answer.encode(), addr)
 
+    def get_nodes(self):
+        '''
+            Gets the IP from the nodes in the structure
+        '''
+        #using cache nodes
+        nodes=None
+        for ip in default_ip:
+            nodes=self.connect('GET_NODES',ip)
+            if nodes!=None:
+                break
+
+        #using multicast
+        if nodes==None:
+            ip=self.search_nodes()
+            if ip != None:
+                nodes=self.connect('GET_NODES',ip)
+        
+        if nodes==None:
+            return []
+        return ast.literal_eval(nodes)
+
+
     def heartbeats(self):
         while True:
+            time.sleep(10)
             to_remove=[]
             ips=[]
             with self.lock:
-                ips=[ip for ip in self.NODES if ip!=self.IP]
+                ips=self.NODES
             for ip in ips:
+                if ip==self.IP:
+                    continue
                 response=self.connect('ALIVE',ip)
                 if response==None:
                     to_remove.append(ip)
@@ -142,7 +181,7 @@ class DB_connection:
             if len(to_remove)>0:
                 ips=[x for x in ips if x not in to_remove]
                 with self.lock:
-                    self.NODES=ips+[self.IP]
+                    self.NODES=ips
                 print(f"Lista de adyacentes actualizada: {ips}")
 
 
@@ -151,23 +190,68 @@ class DB_connection:
             Creates the response acording to the messege
         '''
         answer=''
-        if messege=='GET_NODES':
+        instruction=messege.split('\1')
+        if instruction[0]=='GET_NODES':
             ips=[]
             with self.lock:
                 ips=self.NODES
             print(ips)
             answer=str(ips)
-        if messege=='INSERT':
-            ip,_ = addr
+        if instruction[0]=='INSERT':
+            ip,_ = addr            
             with self.lock:
-                self.NODES.append(ip)
                 ips=self.NODES
+            successor=get_successor(ips, ip)
+            ips=ips[:successor]+[ip]+ips[successor:]
+            with self.lock:
+                self.NODES=ips
             print(f"Lista de nodos actualizada: {ips}")
+        if instruction[0]=='MIGRATE':
+            with self.lock:
+                answer=str(self.DB_NODE)
+        if instruction[0]=='INSERT_CLIENT':
+            with self.lock:
+                self.DB_NODE.add_client(instruction[1],instruction[2],instruction[3])
+        if instruction[0]=='INSERT_AGENT':
+            with self.lock:
+                self.DB_NODE.add_agent(instruction[1],instruction[2],instruction[3])
+        if instruction[0]=='CHECK_PASSWORD':
+            with self.lock:
+                answer = self.DB_NODE.check_password(instruction[1],instruction[2])
+        if instruction[0]=='GET_IP_AGENT':
+            with self.lock:
+                answer = self.DB_NODE.get_ip_agent(instruction[1],instruction[2])
+        if instruction[0]=='GET_AGENTS':
+            with self.lock:
+                answer = self.DB_NODE.get_agents(instruction[1])
+        if instruction[0]=='REMOVE_AGENTS':
+            with self.lock:
+                self.DB_NODE.remove_agent(instruction[1])
+            self.remove_copies(instruction[1])
+        if instruction[0]=='REMOVE_COPY':
+            with self.lock:
+                self.DB_NODE.remove_agent(instruction[1])
+
         return answer
 
     def join(self):
         join_threads=[]
         for ip in self.NODES:
+            if ip==self.IP:
+                continue
             join_threads.append(threading.Thread(target=self.connect, args=('INSERT',ip)))
             join_threads[-1].start()
-            
+        
+        for t in join_threads:
+            t.join()
+
+    def remove_copies(self, messege):
+        join_threads=[]
+        for ip in self.NODES:
+            if ip==self.IP:
+                continue
+            join_threads.append(threading.Thread(target=self.connect, args=(f'REMOVE_COPY\1{messege}',ip)))
+            join_threads[-1].start()
+        
+        for t in join_threads:
+            t.join()
