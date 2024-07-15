@@ -209,7 +209,7 @@ class DB_connection:
                 answer=str(self.DB_NODE)
         if instruction[0]=='INSERT_CLIENT':
             with self.lock:
-                self.DB_NODE.add_client(instruction[1],instruction[2],instruction[3])
+                answer=self.DB_NODE.add_client(instruction[1],instruction[2],instruction[3])
         if instruction[0]=='INSERT_AGENT':
             with self.lock:
                 self.DB_NODE.add_agent(instruction[1],instruction[2],instruction[3])

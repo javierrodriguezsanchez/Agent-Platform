@@ -5,7 +5,10 @@ class DB:
         self.clients=dict()
         self.agents=dict()
     def add_client(self,name,password,ip):
+        if name in self.clients.keys():
+            return False
         self.clients[name]=(password,ip)
+        return True
     def add_agent(self,name,dic,ip):
         self.agents[name]=(ast.literal_eval(dic),ip)
     def update_agent(self,name,dic):

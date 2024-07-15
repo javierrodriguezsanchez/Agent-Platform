@@ -102,8 +102,11 @@ class server:
             response=self.connect_database(f"INSERT_AGENT\1{messege[1]}\1{messege[2]}\1{addr[0]}")
         
         elif messege[0]=='SUBSCRIBE':
-            self.connect_database(f"INSERT_CLIENT\1{messege[1]}\1{messege[2]}\1{addr[0]}")
-            
+            result =self.connect_database(f"INSERT_CLIENT\1{messege[1]}\1{messege[2]}\1{addr[0]}")
+            if result=='False':
+                response='El usuario ya existe'
+                sucess=False
+
         elif messege[0]=='LOGIN':
             result=self.connect_database(f"CHECK_PASSWORD\1{messege[1]}\1{messege[2]}")
             if result=='False':
