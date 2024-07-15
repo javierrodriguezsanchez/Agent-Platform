@@ -49,7 +49,7 @@ class client_interface:
         
         count=len(response)
         for i in range(count):
-            agent=decode_str(response[i])
+            agent=response[i]
             print(f"{i+1}: {agent['name']}")
             print(f"\t{agent['description']}")
         print(f"Selecciona el numero del agente con el que desees interactuar o presiona {count+1} para volver atras")
@@ -65,7 +65,7 @@ class client_interface:
             return
         
         if option !=count+1:
-            self.interact_interface(decode_str(response[option-1]))
+            self.interact_interface(response[option-1])
 
     def login(self):
         

@@ -4,19 +4,28 @@ import threading
 
 class client:
     def __init__(self, MCAST_GRP, MCAST_PORT, PORT, AGENT_PORT):
+        #MULTICAST INFO
         self.MCAST_GRP=MCAST_GRP
         self.MCAST_PORT=MCAST_PORT
+        
+        # SERVER INFO
         self.PORT=PORT
-        self.AGENTS_PORT=AGENT_PORT
         self.SERVER_IP=load('IP')
-        self.agents=dict()
-        self.lock = threading.Lock()
         if self.SERVER_IP==None:
             self.search_server()
+        
+        #AGENT SERVER INFO
+        self.AGENTS_PORT=AGENT_PORT
+        self.agents=dict()
+        self.lock = threading.Lock()
         self.agent_server_thread = threading.Thread(target=self.run_agents)
         self.agent_server_thread.start()
 
+
     def search_server(self):
+        '''
+            Use multicast to search the server
+        '''
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
@@ -48,6 +57,9 @@ class client:
             return self.connect(message)
 
     def update_agents(self,name):
+        """
+            This function is use when the client reconects to the server
+        """
         agents=load('agents')
         if agents==None:
             return []
@@ -76,6 +88,8 @@ class client:
         save('agents',[x for x in agents if x not in to_remove])
         return logs
         
+    #BASIC CLIENTS OPERATIONS
+    #------------------------
     def start(self,name,password,SUBSCRIBE):
         action="SUBSCRIBE" if SUBSCRIBE else "LOGIN"
         return self.connect(f'{action}\1{name}\1{password}')
@@ -100,6 +114,8 @@ class client:
             self.agents[info['name']]=get_agent_instance(agent)
         return response
     
+    # LOCAL AGENTS SERVER
+    #--------------------
     def run_agents(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', self.AGENTS_PORT))
