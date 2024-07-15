@@ -69,7 +69,7 @@ class server:
         # Esperar respuesta del servidor
         try:
             data, server = sock.recvfrom(1024)
-            self.DB_IP = data.decode
+            self.DB_IP = data.decode()
             print(f"Base de datos encontrada en {self.DB_IP}")
         except socket.timeout:
             print("No se encontró ningún servidor")
@@ -87,7 +87,7 @@ class server:
             data, _ = sock.recvfrom(1024)
             return data.decode()
         except socket.timeout:
-            self.search_server()
+            self.search_db()
             return self.connect_database(message)
 
     def handle_client(self, data, addr, sock):
