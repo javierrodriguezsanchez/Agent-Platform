@@ -163,7 +163,6 @@ class DB_connection:
             return []
         return ast.literal_eval(nodes)
 
-
     def heartbeats(self):
         while True:
             time.sleep(10)
@@ -183,7 +182,6 @@ class DB_connection:
                 with self.lock:
                     self.NODES=ips
                 print(f"Lista de adyacentes actualizada: {ips}")
-
 
     def create_response(self, messege, addr):
         '''
@@ -215,12 +213,15 @@ class DB_connection:
         if instruction[0]=='INSERT_AGENT':
             with self.lock:
                 self.DB_NODE.add_agent(instruction[1],instruction[2],instruction[3])
+        if instruction[0]=='UPDATE_AGENT':
+            with self.lock:
+                self.DB_NODE.update_agent(instruction[1],instruction[2])
         if instruction[0]=='CHECK_PASSWORD':
             with self.lock:
                 answer = self.DB_NODE.check_password(instruction[1],instruction[2])
         if instruction[0]=='GET_IP_AGENT':
             with self.lock:
-                answer = self.DB_NODE.get_ip_agent(instruction[1],instruction[2])
+                answer = self.DB_NODE.get_ip_agent(instruction[1])
         if instruction[0]=='GET_AGENTS':
             with self.lock:
                 answer = self.DB_NODE.get_agents(instruction[1])
@@ -232,7 +233,7 @@ class DB_connection:
             with self.lock:
                 self.DB_NODE.remove_agent(instruction[1])
 
-        return answer
+        return str(answer)
 
     def join(self):
         join_threads=[]

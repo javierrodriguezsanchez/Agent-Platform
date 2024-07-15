@@ -8,12 +8,14 @@ class DB:
         self.clients[name]=(password,ip)
     def add_agent(self,name,dic,ip):
         self.agents[name]=(ast.literal_eval(dic),ip)
+    def update_agent(self,name,dic):
+        self.agents[name]=(ast.literal_eval(dic),self.agents[name][1])
     def check_password(self, name, password):
-        return self.clients[name]==password
+        return self.clients[name][0]==password
     def get_ip_agent(self,name):
         return self.agents[name][1]
     def get_agents(self,query):
-        return [x for x,_ in self.agents.items()]
+        return [x[0] for _,x in self.agents.items()]
     def __str__(self):
         return f'{self.clients}\2{self.agents}'
 
