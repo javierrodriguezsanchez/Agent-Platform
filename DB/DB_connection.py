@@ -69,8 +69,8 @@ class DB_connection:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
-        sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
-        #send_message(sock, b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        sock.sendto(messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
+        #send_message(sock, messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
         # Esperar respuesta del servidor
         sock.settimeout(5)
         try:
@@ -163,7 +163,6 @@ class DB_connection:
         elif instruction[0]=='MIGRATE':
             with self.lock:
                 answer=str(self.DB)+'\1'+str(self.S_COPY)
-                print("Se llamo a migrate: ",answer)
         elif instruction[0]=='RECOVER_MIDDLE':
             with self.lock:
                 answer=str(self.S_COPY)
@@ -192,10 +191,7 @@ class DB_connection:
         elif instruction[0]=='ALIVE':
             answer='True'
         else:
-            print("Enter the database: ",instruction)
             answer=self.DB.edit_database(messege)
-        if answer==None:
-            print("La respuesta a la siguiente instruccion es None: ",instruction)
         sock.sendto(answer.encode(), addr)
         #send_message(sock, answer.encode(), addr)
 
@@ -269,6 +265,7 @@ class DB_connection:
                     successors=[self.IP]*5
                 continue
             s=self.connect(f'GET_SUCCESSOR\1{successors[i]}',ip)
+            print("Respuesta al mensaje: ",f'GET_SUCCESSOR\1{successors[i]}',": ",s)
             if s==None:#reference node disconected
                 if i==0:
                     ip=None
@@ -276,6 +273,7 @@ class DB_connection:
                 i-=1
                 successors.pop()
                 ip=successors[-1]
+            print("Sucesor descubierto",s)
             successors.append(s)
             ip=s
             i+=1
@@ -305,10 +303,7 @@ class DB_connection:
 
     def update_finger_table(self):
         while True:
-            while self.SUCCESSOR==self.IP:pass
-
-            if self.SUCCESSOR==self.IP:
-                continue
+            change=False
             with self.lock:
                 self.FINGER_TABLE[0]=self.SUCCESSOR
             _id=hash(self.IP)
@@ -318,15 +313,17 @@ class DB_connection:
                 with self.lock:
                     previus_ip=self.FINGER_TABLE[i-1]
                 ip=self.connect(f'GET_SUCCESSOR\1{data}',previus_ip)
-                if ip==None and i!=1:
+                if ip==None:
+                    print("Desaparecio un nodo")
                     i-=1
-                    continue
-                elif ip==None:
-                    continue
+                    break
                 with self.lock:
+                    if self.FINGER_TABLE[i] != ip:
+                        change=True
                     self.FINGER_TABLE[i] = ip
                 i+=1
-                time.sleep(5)
+            if change:
+                print('La finger_table ha sido actualizada')
 
     def migrate(self):
         while True:
