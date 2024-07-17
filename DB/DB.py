@@ -7,7 +7,7 @@ class DB:
         self.logs=dict()
         self.time=0
     def edit_database(self,instruction):
-        instruction=instruction.split()
+        instruction=instruction.split('\1')
         answer=''
         if instruction[0]=='INSERT_CLIENT':
             answer=self.add_client(instruction[1],instruction[2],instruction[3])
@@ -29,8 +29,7 @@ class DB:
             answer=self.time
         if instruction[0]=='FORGET':
             answer=self.forget(instruction[1])
-        
-        return answer
+        return str(answer)
     def add_client(self,name,password,ip):
         if name in self.clients.keys():
             return False
@@ -53,7 +52,7 @@ class DB:
     def get_ip_agent(self,name):
         return self.agents[name][1]
     def get_agents(self,query):
-        return [x[0] for _,x in self.agents.items()]
+        return [x[0] for y,x in self.agents.items() if query in y]
     def remove_agent(self,name):
         self.time+=1
         if name in self.agents.keys():
