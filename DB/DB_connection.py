@@ -3,7 +3,7 @@ import struct
 import threading
 import ast
 from DB import DB, parseDB
-from DB_aux import *
+from DB_utils import *
 import time
 
 default_ip=['172.17.0.2']
@@ -70,11 +70,12 @@ class DB_connection:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
-        sock.sendto(messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
+        #sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        send_message(sock, b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
         # Esperar respuesta del servidor
         sock.settimeout(5)
         try:
-            data, server = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             ip = data.decode()
             return ip
         except socket.timeout:
@@ -87,11 +88,12 @@ class DB_connection:
         # Crear socket unicast para comunicaciones futuras
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(messege.encode(), (ip, self.PORT))        
+        #sock.sendto(messege.encode(), (ip, self.PORT))        
+        send_message(sock, messege.encode(), (ip, self.PORT))    
         # Esperar respuesta        
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             return data.decode()
         except socket.timeout:
             return None
@@ -110,7 +112,7 @@ class DB_connection:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
         while True:
-            data, addr = sock.recvfrom(1024)
+            data, addr = receive_message(sock)
             data=data.decode()
             if data=='ALIVE':
                 ip=addr[0]
@@ -122,8 +124,9 @@ class DB_connection:
             else:
                 print(f"mensaje multicast recibido de {addr}: {data}")
                 print(f"Enviandole mi IP {self.IP}")
-                # Enviar respuesta
-                sock.sendto(self.IP.encode(), addr)
+            # Enviar respuesta
+            #sock.sendto(self.IP.encode(), addr)
+            send_message(sock, self.IP.encode(), addr)
     
     def run(self):
         """
@@ -140,7 +143,7 @@ class DB_connection:
         sock.bind(('', self.PORT))
         
         while True:
-            data, addr = sock.recvfrom(1024)
+            data, addr = receive_message(sock)
             
             # Crear un nuevo hilo para manejar la interacción del cliente
             answer_thread = threading.Thread(target=self.answer, args=(data, addr, sock))
@@ -193,7 +196,8 @@ class DB_connection:
             answer=self.DB.edit_database(messege)
         if answer==None:
             print(instruction)
-        sock.sendto(answer.encode(), addr)
+        #sock.sendto(answer.encode(), addr)
+        send_message(sock, answer.encode(), addr)
 
     def get_reference_node(self):
         #using cache nodes

@@ -30,10 +30,11 @@ class client:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
         print("Buscando servidor...")
-        sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        #sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        send_message(sock, b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
         # Esperar respuesta del servidor
         try:
-            data, server = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             self.SERVER_IP = data.decode().split('\1')[1]
             print(f"Servidor encontrado en {self.SERVER_IP}")
             save('IP',self.SERVER_IP)
@@ -45,12 +46,13 @@ class client:
         # Crear socket unicast para comunicaciones futuras
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(message.encode(), (self.SERVER_IP, self.PORT))        
+        #sock.sendto(message.encode(), (self.SERVER_IP, self.PORT))        
+        send_message(sock, message.encode(), (self.SERVER_IP, self.PORT))   
         # Esperar respuesta
         
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             return data.decode()
         except socket.timeout:
             self.search_server()
@@ -121,7 +123,7 @@ class client:
         sock.bind(('', self.AGENTS_PORT))
         print("Corriendo servidor de agentes por el puerto ", self.AGENTS_PORT)
         while True:
-            data, addr = sock.recvfrom(1024)
+            data, addr = receive_message(sock)
             # Crear un nuevo hilo para manejar la interacción del cliente
             agent_thread = threading.Thread(target=self.handle_agent_call, args=(data, addr, sock))
             agent_thread.start()

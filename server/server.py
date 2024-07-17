@@ -2,6 +2,7 @@ import socket
 import struct
 import threading
 import ast
+from server_utils import *
 
 default_db_ip=['172.17.0.2']
 default_db_grp='224.1.1.2'
@@ -31,9 +32,10 @@ class server:
 
         print("Servidor multicast esperando mensajes...")
         while True:
-            data, addr = sock.recvfrom(1024)
+            _, addr = receive_message(sock)
             # Enviar respuesta
-            sock.sendto(f'SUCESS\1{self.IP}'.encode(), addr)
+            #sock.sendto(f'SUCESS\1{self.IP}'.encode(), addr)
+            send_message(sock, f'SUCESS\1{self.IP}'.encode(), addr)
     
     def run(self):
         mcast_thread=threading.Thread(target=self.mcast_run)
@@ -45,7 +47,7 @@ class server:
         print("Servidor unicast esperando mensajes...")
 
         while True:
-            data, addr = sock.recvfrom(1024)
+            data, addr = receive_message(sock)
             print(f"Mensaje recibido de {addr}: {data.decode()}")
             
             # Crear un nuevo hilo para manejar la interacción del cliente
@@ -65,10 +67,11 @@ class server:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
         print("Buscando servidor...")
-        sock.sendto(b"DISCOVER", (self.DB_GRP, self.DB_MCAST_PORT))
+        #sock.sendto(b"DISCOVER", (self.DB_GRP, self.DB_MCAST_PORT))
+        send_message(sock, b"DISCOVER",(self.DB_GRP, self.DB_MCAST_PORT))
         # Esperar respuesta del servidor
         try:
-            data, server = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             self.DB_IP = data.decode()
             print(f"Base de datos encontrada en {self.DB_IP}")
         except socket.timeout:
@@ -79,12 +82,13 @@ class server:
         # Crear socket unicast para comunicaciones futuras
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(message.encode(), (self.DB_IP, self.DB_PORT))        
+        #sock.sendto(message.encode(), (self.DB_IP, self.DB_PORT)) 
+        send_message(sock, message.encode(), (self.DB_IP, self.DB_PORT))       
         # Esperar respuesta
         
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             return data.decode()
         except socket.timeout:
             self.search_db()
@@ -140,7 +144,8 @@ class server:
         # Enviar respuesta
         print(f'Enviando {response} a {addr}')
         result='SUCESS' if sucess else 'ERROR'
-        sock.sendto(f'{result}\1{response}'.encode(), addr)
+        #sock.sendto(f'{result}\1{response}'.encode(), addr)
+        send_message(sock, f'{result}\1{response}'.encode(), addr)
     
     def exec_action(self,agent,action,args, IP):
         messege=f'EXEC\1{agent}\1{action}\1{args}'
@@ -151,12 +156,13 @@ class server:
         print(type(IP))
         print(args)
         print(type(args))
-        sock.sendto(messege.encode(), (IP, self.AGENTS_PORT))        
+        #sock.sendto(messege.encode(), (IP, self.AGENTS_PORT))        
+        send_message(sock, messege.encode(), (IP, self.AGENTS_PORT))     
         # Esperar respuesta
         
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             return data.decode()
         except socket.timeout:
             return 'ERROR\1Time out'
