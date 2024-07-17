@@ -114,16 +114,13 @@ class DB_connection:
         while True:
             data, addr = receive_message(sock)
             data=data.decode()
+            if addr[0]==self.IP:
+                continue
             if data=='ALIVE':
                 ip=addr[0]
-                if ip==self.IP:
-                    continue
                 if ip>self.IP and ip<self.SUCCESSOR or (self.IP>self.SUCCESSOR and self.IP<ip) or self.IP==self.SUCCESSOR:
                     self.SUCCESSOR=ip
                     print(f'Sucesor descubierto en ip {self.SUCCESSOR}')
-            else:
-                print(f"mensaje multicast recibido de {addr}: {data}")
-                print(f"Enviandole mi IP {self.IP}")
             # Enviar respuesta
             #sock.sendto(self.IP.encode(), addr)
             send_message(sock, self.IP.encode(), addr)
@@ -164,7 +161,7 @@ class DB_connection:
             with self.lock:
                 answer=str(self.DB)+'\1'+str(self.S_COPY)
         elif instruction[0]=='RECOVER_MIDDLE':
-            print(instruction[1])
+            print('RECOVER_MIDDLE')
             with self.lock:
                 answer=str(self.S_COPY)
             thread=threading.Thread(target=self.DB.join, args=(instruction[1],True))
@@ -192,7 +189,7 @@ class DB_connection:
         elif instruction[0]=='ALIVE':
             answer='True'
         else:
-            print(instruction)
+            print("Enter the database")
             answer=self.DB.edit_database(messege)
         if answer==None:
             print(instruction)
@@ -279,7 +276,7 @@ class DB_connection:
             sucessors.append(s)
             ip=s
             i+=1
-        print(sucessors)
+        print("Sucesores: ", sucessors)
         self.SUCCESSOR=sucessors[1]
         self.SS=sucessors[2]
         self.SSS=sucessors[3]
@@ -425,6 +422,7 @@ class DB_connection:
         s_state=self.connect(f'SYNCRONIZE\1{self.S_COPY.time}\1{self.SS_COPY.time}', self.SUCCESSOR)
         if s_state==None:
             return None
+        print(s_state)
         s_state=s_state.split('\1')
         t1=threading.Thread(target=self.syncronize, args=(int(s_state[0]), s_state[1],self.S_COPY, True))
         t2=threading.Thread(target=self.syncronize, args=(int(s_state[2]), s_state[3],self.SS_COPY, False))
