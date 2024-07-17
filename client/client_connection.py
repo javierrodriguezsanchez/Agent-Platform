@@ -122,8 +122,8 @@ class client:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', self.AGENTS_PORT))
         print("Corriendo servidor de agentes por el puerto ", self.AGENTS_PORT)
-        while True:
-            data, addr = receive_message(sock)
+        for data, addr in receive_multiple_messages(sock):
+            #data, addr = receive_message(sock)
             # Crear un nuevo hilo para manejar la interacción del cliente
             agent_thread = threading.Thread(target=self.handle_agent_call, args=(data, addr, sock))
             agent_thread.start()

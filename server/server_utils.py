@@ -19,3 +19,19 @@ def receive_message(sock):
         chunks.append(chunk)
     data = b''.join(chunks)
     return data, addr
+
+def receive_multiple_messages(sock):
+    datas = {}
+    while True:
+        chunk, addr = sock.recvfrom(1024)
+
+        if chunk == b"END":
+            data = b''.join(datas[addr])
+            yield data, addr
+            del datas[addr]
+
+        if addr in datas:
+            datas[addr].append(chunk)
+        else:
+            datas[addr] = []
+            datas[addr].append(chunk)

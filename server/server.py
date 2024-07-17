@@ -31,8 +31,8 @@ class server:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
         print("Servidor multicast esperando mensajes...")
-        while True:
-            _, addr = receive_message(sock)
+        for data, addr in receive_multiple_messages(sock):
+            #_, addr = receive_message(sock)
             # Enviar respuesta
             #sock.sendto(f'SUCESS\1{self.IP}'.encode(), addr)
             send_message(sock, f'SUCESS\1{self.IP}'.encode(), addr)
@@ -46,8 +46,8 @@ class server:
         
         print("Servidor unicast esperando mensajes...")
 
-        while True:
-            data, addr = receive_message(sock)
+        for data, addr in receive_multiple_messages(sock):
+            #data, addr = receive_message(sock)
             print(f"Mensaje recibido de {addr}: {data.decode()}")
             
             # Crear un nuevo hilo para manejar la interacción del cliente
