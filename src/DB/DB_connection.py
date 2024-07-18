@@ -47,7 +47,7 @@ class DB_connection:
             
         print(f"Mi sucesor es {self.SUCCESSOR}")
         print(f"El sucesor de mi sucesor es {self.SS}")
-        self.DB.add_client(self.IP,self.IP,self.IP)
+        #self.DB.add_client(self.IP,self.IP,self.IP)
 
         #Running the server and the heartbeats
         #-------------------------------------
@@ -70,7 +70,6 @@ class DB_connection:
             print(self.S_COPY)
             print("SS_COPY")
             print(self.SS_COPY)
-
 
     def heartbeats(self):
         while True:
@@ -348,6 +347,15 @@ class DB_connection:
                         change=True
                     self.FINGER_TABLE[i] = ip
                 i+=1
+            for j in range(0,160):
+                if self.FINGER_TABLE[j] in no_response:
+                    if j!=0:
+                        self.FINGER_TABLE[j]=self.FINGER_TABLE[j-1]
+                        continue
+                    else:
+                        x=self.FINGER_TABLE[0]
+                        while x!=self.SUCCESSOR:
+                            pass
             if change:
                 print('La finger_table ha sido actualizada')
 
@@ -359,9 +367,9 @@ class DB_connection:
                 if self.SUCCESSOR==self.IP:
                     return
                 continue
-            
             break
         successor_db=successor_db.split('\1')
+        
         self.DB, self.S_COPY=parseDB(successor_db[0]).split(hash(self.IP), hash(self.SUCCESSOR))
         self.SS_COPY=parseDB(successor_db[1])
         self.connect(f"FORGET\1{self.IP}\1{self.SUCCESSOR}",self.SUCCESSOR)
