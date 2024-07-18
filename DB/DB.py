@@ -64,24 +64,26 @@ class DB:
     def forget(self,id,id_2):
         self.time+=1
         if id_2>id:
-            self.clients={x:y for x,y in self.clients.items() if hash(x)>id and hash(x)<=id_2}
-            self.agents={x:y for x,y in self.agents.items() if hash(x)>id and hash(x)<=id_2}
+            self.clients={x:y for x,y in self.clients.items() if hash(x)<=id or hash(x)>id_2}
+            self.agents={x:y for x,y in self.agents.items() if hash(x)<=id or hash(x)>id_2}
         else:
-            self.clients={x:y for x,y in self.clients.items() if hash(x)>id or hash(x)<=id_2}
-            self.agents={x:y for x,y in self.agents.items() if hash(x)>id or hash(x)<=id_2}
+            self.clients={x:y for x,y in self.clients.items() if id_2<hash(x) and hash(x)<=id}
+            self.agents={x:y for x,y in self.agents.items() if id_2<hash(x) and hash(x)<=id}
         self.logs[self.time]=f'FORGET\1{id}\1{id_2}'
     def split(self,id,id_2):
         a=DB()
         b=DB()
-        
-        if id<id_2:
-            a.clients={x:y for x,y in self.clients.items() if hash(x)>id}
-            a.agents={x:y for x,y in self.agents.items() if hash(x)>id}
-        else:
-            a.clients={x:y for x,y in self.clients.items() if hash(x)>id or hash(x)<=id_2}
-            a.agents={x:y for x,y in self.agents.items() if hash(x)>id or hash(x)<=id_2}
-        b.clients={x:y for x,y in self.clients.items() if hash(x)<=id or hash(x)>id_2}
-        b.agents={x:y for x,y in self.agents.items() if hash(x)<=id or hash(x)>id_2}
+        left=min(id,id_2)
+        right=max(id,id_2)
+        a.clients={x:y for x,y in self.clients.items() if left<hash(x) and hash(x)<=right}
+        a.agents={x:y for x,y in self.agents.items() if left<hash(x) and hash(x)<=right}
+        b.clients={x:y for x,y in self.clients.items() if hash(x)<=left or hash(x)>right}
+        b.agents={x:y for x,y in self.agents.items() if hash(x)<=left or hash(x)>right}
+
+        a.time=self.time
+        b.time=self.time
+        if id>id_2:
+            return (a,b)
         return (b,a)
     
     def join(self,db,transform):
