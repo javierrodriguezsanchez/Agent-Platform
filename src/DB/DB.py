@@ -16,6 +16,8 @@ class DB:
             self.add_agent(instruction[1],instruction[2],instruction[3])
         if instruction[0]=='UPDATE_AGENT':
             self.update_agent(instruction[1],instruction[2])
+        if instruction[0]=='AGENT_DESCONECTED':
+            self.agent_desconected(instruction[1])
         if instruction[0]=='CHECK_PASSWORD':
             answer = self.check_password(instruction[1],instruction[2])
         if instruction[0]=='GET_IP_AGENT':
@@ -42,6 +44,10 @@ class DB:
         self.time+=1
         self.agents[name]=(ast.literal_eval(dic),ip,True)
         self.logs[self.time]=f'INSERT_AGENT\1{name}\1{dic}\1{ip}'
+    def agent_desconected(self,name):
+        self.time+=1
+        self.agents[name]=(self.agents[name][0],self.agents[name][1],False)
+        self.logs[self.time]=f'AGENT_DESCONECTED\1{name}'
     def update_agent(self,name,dic):
         self.time+=1
         info=ast.literal_eval(dic)
@@ -53,7 +59,7 @@ class DB:
     def get_ip_agent(self,name):
         return self.agents[name][1]
     def get_agents(self,query):
-        return [x[0] for y,x in self.agents.items() if query in y]
+        return [x[0] for y,x in self.agents.items() if query in y and x[2]]
     def remove_agent(self,name):
         self.time+=1
         if name in self.agents.keys():

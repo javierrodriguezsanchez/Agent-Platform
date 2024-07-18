@@ -131,10 +131,11 @@ class server:
                 if response[0]=="ERROR":
                     sucess==False
                     response=response[1]
+                    self.connect_database(f"AGENT_DESCONECTED\1{messege[1]}")
                 else:
                     response=response[1]
             else:
-                response="El agente no existe"
+                response="El agente no existe o esta fuera de linea"
                 sucess=False
         
         else:
