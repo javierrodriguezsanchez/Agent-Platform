@@ -131,7 +131,8 @@ class client:
     def handle_agent_call(self, data, addr,sock):
         request=data.decode().split('\1')
         if request[0]!='EXEC':
-            sock.sendto('ERROR: Protocolo incorrecto'.encode(), addr)
+            #sock.sendto('ERROR: Protocolo incorrecto'.encode(), addr)
+            send_message(sock, 'ERROR: Protocolo incorrecto'.encode(), addr)
             return
         with self.lock:
             response=getattr(self.agents[request[1]],request[2])(self.interact, decode_str(request[3]))
@@ -139,4 +140,5 @@ class client:
             response='ERROR\1La accion no se pudo llevar a cabo'
         else:
             response=f'SUCESS\1{response}'
-        sock.sendto(response.encode(), addr)
+        #sock.sendto(response.encode(), addr)
+        send_message(sock, response.encode(), addr)

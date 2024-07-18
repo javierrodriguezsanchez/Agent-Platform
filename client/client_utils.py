@@ -97,7 +97,7 @@ def receive_multiple_messages(sock):
             yield data, addr
             del datas[addr]
 
-        if addr in datas:
+        elif addr in datas:
             datas[addr].append(chunk)
         else:
             datas[addr] = []
