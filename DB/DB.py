@@ -29,7 +29,7 @@ class DB:
         if instruction[0]=='TIME':
             answer=self.time
         if instruction[0]=='FORGET':
-            answer=self.forget(hash(instruction[1]))
+            answer=self.forget(hash(instruction[1]),hash(instruction[2]))
         return str(answer)
     def add_client(self,name,password,ip):
         if name in self.clients.keys():
@@ -61,19 +61,29 @@ class DB:
             self.logs[self.time]=f"REMOVE_AGENT\1{name}"
     def __str__(self):
         return f'{self.clients}\2{self.agents}\2{self.time}'
-    def forget(self,id):
+    def forget(self,id,id_2):
         self.time+=1
-        self.clients={x:y for x,y in self.clients.items() if hash(x)>id}
-        self.agents={x:y for x,y in self.agents.items() if hash(x)>id}
-        self.logs[self.time]=f'FORGET\1{id}'
-    def split(self,id):
+        if id_2>id:
+            self.clients={x:y for x,y in self.clients.items() if hash(x)>id and hash(x)<=id_2}
+            self.agents={x:y for x,y in self.agents.items() if hash(x)>id and hash(x)<=id_2}
+        else:
+            self.clients={x:y for x,y in self.clients.items() if hash(x)>id or hash(x)<=id_2}
+            self.agents={x:y for x,y in self.agents.items() if hash(x)>id or hash(x)<=id_2}
+        self.logs[self.time]=f'FORGET\1{id}\1{id_2}'
+    def split(self,id,id_2):
         a=DB()
-        a.clients={x:y for x,y in self.clients.items() if hash(x)>id}
-        a.agents={x:y for x,y in self.agents.items() if hash(x)>id}
         b=DB()
-        b.clients={x:y for x,y in self.clients.items() if hash(x)<=id}
-        b.agents={x:y for x,y in self.agents.items() if hash(x)<=id}
+        
+        if id<id_2:
+            a.clients={x:y for x,y in self.clients.items() if hash(x)>id}
+            a.agents={x:y for x,y in self.agents.items() if hash(x)>id}
+        else:
+            a.clients={x:y for x,y in self.clients.items() if hash(x)>id or hash(x)<=id_2}
+            a.agents={x:y for x,y in self.agents.items() if hash(x)>id or hash(x)<=id_2}
+        b.clients={x:y for x,y in self.clients.items() if hash(x)<=id or hash(x)>id_2}
+        b.agents={x:y for x,y in self.agents.items() if hash(x)<=id or hash(x)>id_2}
         return (b,a)
+    
     def join(self,db,transform):
         if transform:
             db=parseDB(db)

@@ -26,13 +26,15 @@ def receive_multiple_messages(sock):
     datas = {}
     while True:
         chunk, addr = sock.recvfrom(1024)
-
+        a=chunk.decode()
+        if('END' in a and a!='END'):
+            print(a)
         if chunk == b"END":
             data = b''.join(datas[addr])
             yield data, addr
             del datas[addr]
 
-        if addr in datas:
+        elif addr in datas:
             datas[addr].append(chunk)
         else:
             datas[addr] = []

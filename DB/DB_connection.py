@@ -47,7 +47,7 @@ class DB_connection:
             
         print(f"Mi sucesor es {self.SUCCESSOR}")
         print(f"El sucesor de mi sucesor es {self.SS}")
-        #self.DB.add_client(self.IP,self.IP,self.IP)
+        self.DB.add_client(self.IP,self.IP,self.IP)
 
         #Running the server and the heartbeats
         #-------------------------------------
@@ -208,8 +208,12 @@ class DB_connection:
         elif instruction[0]=='ALIVE':
             answer='True'
         else:
+            print(f"Entro a la database: {instruction}")
             answer=self.DB.edit_database(messege)
         #sock.sendto(answer.encode(), addr)
+
+        if messege=='':
+            print("Mensaje vacio recibido")
         send_message(sock, answer.encode(), addr)
 
     def get_reference_node(self):
@@ -320,6 +324,7 @@ class DB_connection:
 
     def update_finger_table(self):
         while True:
+            no_response=[]
             change=False
             with self.lock:
                 self.FINGER_TABLE[0]=self.SUCCESSOR
@@ -329,11 +334,15 @@ class DB_connection:
                 data=(_id + 2 ** i) % (2 ** 160)
                 with self.lock:
                     previus_ip=self.FINGER_TABLE[i-1]
+                if previus_ip==self.IP or previus_ip in no_response:
+                    i+=1
+                    continue
                 ip=self.connect(f'GET_SUCCESSOR\1{data}',previus_ip)
                 if ip==None:
-                    print("Desaparecio un nodo")
-                    i-=1
-                    break
+                    print(f"{previus_ip} no responde")
+                    no_response.append(previus_ip)
+                    i+=1
+                    continue
                 with self.lock:
                     if self.FINGER_TABLE[i] != ip:
                         change=True
@@ -353,9 +362,9 @@ class DB_connection:
             
             break
         successor_db=successor_db.split('\1')
-        self.DB, self.S_COPY=parseDB(successor_db[0]).split(hash(self.IP))
+        self.DB, self.S_COPY=parseDB(successor_db[0]).split(hash(self.IP), hash(self.SUCCESSOR))
         self.SS_COPY=parseDB(successor_db[1])
-        self.connect(f"FORGET\1{self.IP}",self.SUCCESSOR)
+        self.connect(f"FORGET\1{self.IP}\1{self.SUCCESSOR}",self.SUCCESSOR)
 
     def check_copies(self):
         
@@ -377,7 +386,7 @@ class DB_connection:
                 self.SSS=successors[1]
                 continue
 
-            print("El sucesor desaparecio")
+            print(f"El sucesor {self.SUCCESSOR} desaparecio")
             
             if self.SS==self.IP:
                 print("Nuevo sucesor: ", self.IP)
