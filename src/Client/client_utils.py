@@ -70,8 +70,8 @@ def get_agent_instance(agent):
 
 def send_message(sock, message, addr):
     chunk_size = 1024
+    sock.sendto(b"START", addr)
     for i in range(0, len(message), chunk_size):
-        print("Client sending")
         chunk = message[i:i+chunk_size]
         sock.sendto(chunk, addr)
     sock.sendto(b"END", addr)
@@ -82,8 +82,10 @@ def receive_message(sock):
         chunk, addr = sock.recvfrom(1024)
         if chunk == b"END":
             break
-        print(f"Client receive {chunk}")
+        if chunk == b"START":
+            continue
         chunks.append(chunk)
+        
     data = b''.join(chunks)
     return data, addr
 
@@ -91,6 +93,10 @@ def receive_multiple_messages(sock):
     datas = {}
     while True:
         chunk, addr = sock.recvfrom(1024)
+
+        if chunk == b"START":
+            datas[addr] = []
+            continue
 
         if chunk == b"END":
             data = b''.join(datas[addr])

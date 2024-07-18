@@ -2,8 +2,8 @@ import socket
 
 def send_message(sock, message, addr):
     chunk_size = 1024
+    sock.sendto(b"START", addr)
     for i in range(0, len(message), chunk_size):
-        print("Server sending")
         chunk = message[i:i+chunk_size]
         sock.sendto(chunk, addr)
     sock.sendto(b"END", addr)
@@ -11,12 +11,13 @@ def send_message(sock, message, addr):
 def receive_message(sock):
     chunks = []
     while True:
-        print("executing")
         chunk, addr = sock.recvfrom(1024)
         if chunk == b"END":
             break
-        print(f"Server receive {chunk}")
+        if chunk == b"START":
+            continue
         chunks.append(chunk)
+        
     data = b''.join(chunks)
     return data, addr
 
@@ -24,6 +25,10 @@ def receive_multiple_messages(sock):
     datas = {}
     while True:
         chunk, addr = sock.recvfrom(1024)
+
+        if chunk == b"START":
+            datas[addr] = []
+            continue
 
         if chunk == b"END":
             data = b''.join(datas[addr])

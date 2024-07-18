@@ -50,7 +50,7 @@ class client:
         send_message(sock, message.encode(), (self.SERVER_IP, self.PORT))   
         # Esperar respuesta
         
-        sock.settimeout(5)
+        sock.settimeout(10)
         try:
             data, _ = receive_message(sock)
             return data.decode()
