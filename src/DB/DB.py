@@ -41,13 +41,13 @@ class DB:
     def add_agent(self,name,dic,ip):
         self.time+=1
         self.agents[name]=(ast.literal_eval(dic),ip,True)
-        self.logs[self.time]='INSERT_AGENT}\1{name}\1{dic}\1{ip}'
+        self.logs[self.time]=f'INSERT_AGENT\1{name}\1{dic}\1{ip}'
     def update_agent(self,name,dic):
         self.time+=1
         info=ast.literal_eval(dic)
         if info[name] not in self.agents[name].keys():
             self.agents[name]=(info,self.agents[name][1],True)
-            self.logs[self.time]='UPDATE',name,info
+            self.logs[self.time]=f'UPDATE\1{name}\1{info}'
     def check_password(self, name, password):
         return self.clients[name][0]==password
     def get_ip_agent(self,name):
@@ -69,7 +69,7 @@ class DB:
         else:
             self.clients={x:y for x,y in self.clients.items() if id_2<hash(x) and hash(x)<=id}
             self.agents={x:y for x,y in self.agents.items() if id_2<hash(x) and hash(x)<=id}
-        self.logs[self.time]=f'FORGET\1{id}\1{id_2}'
+        #self.logs[self.time]=f'FORGET\1{id}\1{id_2}'
     def split(self,id,id_2):
         a=DB()
         b=DB()
@@ -95,7 +95,7 @@ class DB:
         self.logs[self.time]=f'JOIN\1{db}'
     
     def get_logs(self,time):
-        return [y for x,y in self.agents.items() if int(x)>time]
+        return [y for x,y in self.logs.items() if int(x)>time]
 
 def parseDB(text):
     data=text.split('\2')

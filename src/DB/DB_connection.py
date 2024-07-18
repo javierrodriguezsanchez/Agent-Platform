@@ -468,7 +468,8 @@ class DB_connection:
         if time==db.time:
             return
         if time>db.time:
-            for log in logs:
+            for log in ast.literal_eval(logs):
+                print("Haciendo log: ",log)
                 db.edit_database(log)
             db.time=time
             return
