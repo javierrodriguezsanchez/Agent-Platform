@@ -47,8 +47,12 @@ class DB_connection:
             
         print(f"Mi sucesor es {self.SUCCESSOR}")
         print(f"El sucesor de mi sucesor es {self.SS}")
+        #self.DB.add_client(self.IP,self.IP,self.IP)
+
         #Running the server and the heartbeats
         #-------------------------------------
+        db_print=threading.Thread(target=self.db_print)
+        db_print.start()
         hearbeat_thread=threading.Thread(target=self.heartbeats)
         hearbeat_thread.start()
         check_copies_thread=threading.Thread(target=self.check_copies)
@@ -56,6 +60,17 @@ class DB_connection:
         upd_ft_thread=threading.Thread(target=self.update_finger_table)
         upd_ft_thread.start()
         self.run()
+
+    def db_print(self):
+        while True:
+            input()
+            print("DB")
+            print(self.DB)
+            print("S_COPY")
+            print(self.S_COPY)
+            print("SS_COPY")
+            print(self.SS_COPY)
+
 
     def heartbeats(self):
         while True:
@@ -69,13 +84,13 @@ class DB_connection:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
-        sock.sendto(messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
-        #send_message(sock, messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
+        #sock.sendto(messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
+        send_message(sock, messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
         # Esperar respuesta del servidor
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
-            #data, _ = receive_message(sock)
+            #data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             ip = data.decode()
             return ip
         except socket.timeout:
@@ -88,13 +103,13 @@ class DB_connection:
         # Crear socket unicast para comunicaciones futuras
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Enviar mensajes al servidor usando la dirección unicast
-        sock.sendto(messege.encode(), (ip, self.PORT))        
-        #send_message(sock, messege.encode(), (ip, self.PORT))    
+        #sock.sendto(messege.encode(), (ip, self.PORT))        
+        send_message(sock, messege.encode(), (ip, self.PORT))    
         # Esperar respuesta        
         sock.settimeout(5)
         try:
-            data, _ = sock.recvfrom(1024)
-            #data, _ = receive_message(sock)
+            #data, _ = sock.recvfrom(1024)
+            data, _ = receive_message(sock)
             return data.decode()
         except socket.timeout:
             return None
@@ -112,20 +127,21 @@ class DB_connection:
 
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        while True:
-            data, addr = sock.recvfrom(1024)
+        for data, addr in receive_multiple_messages(sock):
+        #while True:
+            #data, addr = sock.recvfrom(1024)
             #data, addr = receive_message(sock)
             data=data.decode()
             if addr[0]==self.IP:
                 continue
             if data=='ALIVE':
                 ip=addr[0]
-                if ip>self.IP and ip<self.SUCCESSOR or (self.IP>self.SUCCESSOR and self.IP<ip) or self.IP==self.SUCCESSOR:
+                if ip>self.IP and ip<self.SUCCESSOR or (self.IP>=self.SUCCESSOR and self.IP<ip) or (self.IP>=self.SUCCESSOR and self.SUCCESSOR>ip) or self.IP==self.SUCCESSOR:
                     self.SUCCESSOR=ip
                     print(f'Sucesor descubierto en ip {self.SUCCESSOR}')
             # Enviar respuesta
-            sock.sendto(self.IP.encode(), addr)
-            #send_message(sock, self.IP.encode(), addr)
+            #sock.sendto(self.IP.encode(), addr)
+            send_message(sock, self.IP.encode(), addr)
     
     def run(self):
         """
@@ -141,8 +157,9 @@ class DB_connection:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', self.PORT))
         
-        while True:
-            data, addr = sock.recvfrom(1024)
+        for data, addr in receive_multiple_messages(sock):
+        #while True:
+            #data, addr = sock.recvfrom(1024)
             #data, addr = receive_message(sock)
             
             # Crear un nuevo hilo para manejar la interacción del cliente
@@ -192,8 +209,8 @@ class DB_connection:
             answer='True'
         else:
             answer=self.DB.edit_database(messege)
-        sock.sendto(answer.encode(), addr)
-        #send_message(sock, answer.encode(), addr)
+        #sock.sendto(answer.encode(), addr)
+        send_message(sock, answer.encode(), addr)
 
     def get_reference_node(self):
         #using cache nodes
@@ -328,7 +345,6 @@ class DB_connection:
     def migrate(self):
         while True:
             successor_db=self.connect("MIGRATE",self.SUCCESSOR)
-            print("aaaaaaa: " ,successor_db, ' ', self.SUCCESSOR)
             if successor_db==None:
                 self.get_successors(self.SS)
                 if self.SUCCESSOR==self.IP:
@@ -337,7 +353,6 @@ class DB_connection:
             
             break
         successor_db=successor_db.split('\1')
-        print("La migracion dio: ",successor_db)
         self.DB, self.S_COPY=parseDB(successor_db[0]).split(hash(self.IP))
         self.SS_COPY=parseDB(successor_db[1])
         self.connect(f"FORGET\1{self.IP}",self.SUCCESSOR)

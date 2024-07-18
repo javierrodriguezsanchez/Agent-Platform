@@ -1,5 +1,6 @@
 import ast
-    
+import DB_utils
+
 class DB:
     def __init__(self):
         self.clients=dict()
@@ -28,7 +29,7 @@ class DB:
         if instruction[0]=='TIME':
             answer=self.time
         if instruction[0]=='FORGET':
-            answer=self.forget(instruction[1])
+            answer=self.forget(hash(instruction[1]))
         return str(answer)
     def add_client(self,name,password,ip):
         if name in self.clients.keys():
@@ -70,8 +71,8 @@ class DB:
         a.clients={x:y for x,y in self.clients.items() if hash(x)>id}
         a.agents={x:y for x,y in self.agents.items() if hash(x)>id}
         b=DB()
-        b.clients={x:y for x,y in self.clients.items() if hash(x)<id}
-        b.agents={x:y for x,y in self.agents.items() if hash(x)<id}
+        b.clients={x:y for x,y in self.clients.items() if hash(x)<=id}
+        b.agents={x:y for x,y in self.agents.items() if hash(x)<=id}
         return (b,a)
     def join(self,db,transform):
         if transform:
