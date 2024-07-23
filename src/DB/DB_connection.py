@@ -47,12 +47,12 @@ class DB_connection:
             
         print(f"Mi sucesor es {self.SUCCESSOR}")
         print(f"El sucesor de mi sucesor es {self.SS}")
-        #self.DB.add_client(self.IP,self.IP,self.IP)
+        self.DB.add_client(self.IP,self.IP,self.IP)
 
         #Running the server and the heartbeats
         #-------------------------------------
-        db_print=threading.Thread(target=self.db_print)
-        db_print.start()
+        print_node=threading.Thread(target=self.print_node)
+        print_node.start()
         hearbeat_thread=threading.Thread(target=self.heartbeats)
         hearbeat_thread.start()
         check_copies_thread=threading.Thread(target=self.check_copies)
@@ -61,16 +61,26 @@ class DB_connection:
         upd_ft_thread.start()
         self.run()
 
-    def db_print(self):
+    def print_node(self):
         while True:
             input()
+            print()
+            print("Nodo en ", self.IP)
+            print(hash(self.IP))
             print("DB")
             print(self.DB)
+            print()
+            print("Sucesor: ",self.SUCCESSOR)
             print("S_COPY")
             print(self.S_COPY)
+            print()
+            print("Sucesor del sucesor: ",self.SS)
             print("SS_COPY")
             print(self.SS_COPY)
-
+            print()
+            print("Sucesor del sucesor del sucesor: ",self.SSS)
+            print()
+    
     def heartbeats(self):
         while True:
             self.mcast_messege('ALIVE')
@@ -201,8 +211,8 @@ class DB_connection:
             else:
                 logs=ast.literal_eval(instruction[3])
                 for log in logs:
-                    self.SS_COPY.edit_database(log)
-                self.SS_COPY.time=int(instruction[2])
+                    self.S_COPY.edit_database(log)
+                self.S_COPY.time=int(instruction[2])
             answer=''
         elif instruction[0]=='ALIVE':
             answer='True'
@@ -369,10 +379,12 @@ class DB_connection:
                 continue
             break
         successor_db=successor_db.split('\1')
-        
-        self.DB, self.S_COPY=parseDB(successor_db[0]).split(hash(self.IP), hash(self.SUCCESSOR))
+        print("Resultado de la migracion: ",successor_db)
+        self.DB=parseDB(successor_db[0])
+        self.S_COPY=parseDB(successor_db[0])
         self.SS_COPY=parseDB(successor_db[1])
         self.connect(f"FORGET\1{self.IP}\1{self.SUCCESSOR}",self.SUCCESSOR)
+        self.DB.forget(hash(self.IP),hash(self.SUCCESSOR))
 
     def check_copies(self):
         
@@ -473,4 +485,4 @@ class DB_connection:
                 db.edit_database(log)
             db.time=time
             return
-        self.connect(f'UPDATE_TIME\1{2 if ss else 1}\1{db.time}\1{db.get_logs(time)}',self.SUCCESSOR)
+        self.connect(f'UPDATE_TIME\1{1 if ss else 2}\1{db.time}\1{db.get_logs(time)}',self.SUCCESSOR)
