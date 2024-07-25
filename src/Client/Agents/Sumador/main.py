@@ -14,14 +14,14 @@ class Sumador:
     def __init__(self):
         return
     
-    def sum(self,call_agent, args):
+    def sum(self, search_agents, call_agent, args):
         a, b= args
         return str(int(a)+int(b))
     
-    def sum_list(self,call_agent, args):
+    def sum_list(self, search_agents, call_agent, args):
         return sum(args)
     
-    def sum_range(self,call_agent, args):
+    def sum_range(self, search_agents, call_agent, args):
         if len(args)==3:
             a,b,c=args
         if len(args)==2:

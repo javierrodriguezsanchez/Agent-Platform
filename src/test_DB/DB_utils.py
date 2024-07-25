@@ -1,23 +1,3 @@
-import socket
-import bisect
-import hashlib
-
-def get_successor(collection, element):
-    return bisect.bisect_left(collection, element)
-
-def hash(key):
-    return int(hashlib.sha1(key.encode()).hexdigest(), 16)
-
-def smallest_difference_index(collection):
-    smallest=1
-    if len(collection)<=2:
-        return 0, 0
-    smallest_val=collection[2]-collection[0]
-    for i in range(2,len(collection)-1):
-        if collection[i+1]-collection[i-1]<smallest_val:
-            smallest=i
-    return smallest
-
 def send_message(sock, message, addr):
     chunk_size = 1024
     sock.sendto(b"\6", addr)
