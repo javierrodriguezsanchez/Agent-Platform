@@ -66,7 +66,7 @@ class server:
                 ip=addr[0]
                 key=hash(ip)
                 pos=get_successor(self.hash_ip,key)
-                if ip==self.DB_IP[pos]:
+                if ip==self.DB_IP[pos-1]:
                     continue
                 self.DB_IP.insert(pos,ip)
                 self.hash_ip.insert(pos,key)

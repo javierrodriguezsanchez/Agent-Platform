@@ -17,6 +17,13 @@ class connection:
         if new_ip != []:
             save('IP',self.SERVER_IP)
         self.ip_index=0
+        if self.SERVER_IP == []:
+            ip = self.search_server()
+            if ip==None:
+                print("No se encontro ningun server")
+                return 'ERROR\1No se pudo encontrar servidor'
+            else:
+                self.SERVER_IP.append(ip)
 
         #AGENT SERVER INFO
         self.AGENTS_PORT=info['AGENT PORT']
@@ -37,12 +44,13 @@ class connection:
         '''
         # Crear socket unicast para comunicaciones futuras
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        coded_message = message.encode()
 
         while True:
             # Enviar mensajes al servidor usando la dirección unicast
-            addr=(self.SERVER_IP[self.ip_index], self.PORT)
+            addr=(self.SERVER_IP[self.ip_index], self.SERVER_PORT)
             print('Enviando mensaje a ', addr)        
-            send_message(sock, message, addr)
+            send_message(sock, coded_message, addr)
             
             # Esperar respuesta
             data = receive_message(sock)
@@ -71,7 +79,7 @@ class connection:
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
         print("Buscando servidor...")
-        sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
+        sock.sendto(b"DISCOVER", (self.SERVER_GRP, self.SERVER_MCAST_PORT))
         # Esperar respuesta del servidor
         try:
             data, addr = sock.recvfrom(1024)
