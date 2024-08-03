@@ -23,7 +23,8 @@ class database:
             exist=(instructions[1] in self.users)
             if not exist:
                 self.users[instructions[1]]=instructions[2]
-            return str(exist)
+                return str(True)
+            return str(False)
         
         if instructions[0]=='NEW_AGENT_TO_ACTION':
             if instructions[1] not in self.categories.keys():

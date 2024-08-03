@@ -247,7 +247,8 @@ class DB_connection:
     # CREATES RESPONSE TO MESSAGE
     # ---------------------------
     def answer(self,data,addr,sock):
-        wait_thread = threading.Thread(target=self.wait, args=(addr, sock))
+        stop_event = threading.Event()
+        wait_thread = threading.Thread(target=self.wait, args=(addr, sock, stop_event))
         wait_thread.start()
         instruction=data.decode().split('\1')[0]
         if instruction in self.CHORD_PROTOCOLS:
@@ -255,14 +256,15 @@ class DB_connection:
         else:
             response=self.DB.edit_database(data.decode())
         # SEND ANSWER
-        wait_thread._stop()
+        stop_event.set()
+        wait_thread.join()
         print(f'Enviando {response} a {addr}')
         send_message(sock, response.encode(), addr)
 
 
-    def wait(self, addr, sock):
+    def wait(self, addr, sock, stop_event):
         try:
-            while True:
+            while not stop_event.is_set():
                 sock.sendto(b"\6", addr)
         except:
             pass

@@ -129,10 +129,10 @@ class connection:
         return
     
     def subscribe(self,name):
-        return self.send_message(f'"SUBSCRIBE"\1{name}')
+        return self.send_message(f'SUBSCRIBE\1{name}')
     
     def search(self,query):
-        return self.send_message(f"QUERY\1{query}")
+        return self.send_message(f'QUERY\1{query}')
     
     def exec(self,agent,action, args): #TODO: DIFFER LOCAL VS GLOBAL
         return self.send_message(f'EXEC\1{agent}\1{action}\1{str(args)}')

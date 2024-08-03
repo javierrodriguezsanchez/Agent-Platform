@@ -98,13 +98,15 @@ class server:
         sucess=True
         response=''
         messege=data.decode().split('\1')
-        wait_thread = threading.Thread(target=self.wait, args=(addr, sock))
+        stop_event = threading.Event()
+        wait_thread = threading.Thread(target=self.wait, args=(addr, sock, stop_event))
         wait_thread.start()
-
+        
         #DIFFER CASE AND CREATE ANSWER
         if messege[0]=='SUBSCRIBE':
             result =self.connect_database(f"INSERT_CLIENT\1{messege[1]}\1{addr[0]}", messege[1])
-            sucess= (result=='False')
+            decoded_result = result.decode()
+            sucess= (decoded_result=='True')
             response='' if sucess else 'El nombre ya existe'
         elif messege[0]=='QUERY':
             response=self.search_agents(messege[1])
@@ -121,15 +123,16 @@ class server:
             sucess=False
 
         # SEND ANSWER
-        wait_thread._stop()
+        stop_event.set()
+        wait_thread.join()
         print(f'Enviando {response} a {addr}')
         result='SUCESS' if sucess else 'ERROR'
         send_message(sock, f'{result}\1{response}'.encode(), addr)
 
 
-    def wait(self, addr, sock):
+    def wait(self, addr, sock, stop_event):
         try:
-            while True:
+            while not stop_event.is_set():
                 sock.sendto(b"\6", addr)
         except:
             pass

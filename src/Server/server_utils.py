@@ -29,7 +29,7 @@ def send_message(sock, message, addr):
 def receive_message(sock):
     chunks = []
     while True:
-        sock.timeout(10)
+        sock.settimeout(10)
         try:
             chunk, _ = sock.recvfrom(1024)
         except:
