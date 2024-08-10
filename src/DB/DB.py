@@ -19,7 +19,7 @@ class database:
 
 
     def time(self):return self.LAMPORT_CLOCK
-
+    def id(self): return str(self.ID_LIST)
 
     # BASIC OPERATIONS OF THE DATABASE
     # --------------------------------
@@ -115,12 +115,13 @@ class database:
         return db 
 
 
-    def upd_id(self, reference_ip):
-        ip=[self.ID_LIST[0]]+reference_ip
-        ip.pop()
-        if self.ID_LIST == reference_ip:
+    def upd_id(self, reference_id):
+        _id=[self.ID_LIST[0]]+ast.literal_eval(reference_id)[:-1]
+        if self.ID_LIST == _id:
             return False
-        self.ID_LIST=reference_ip
+        print(_id)
+        print(self.ID_LIST)
+        self.ID_LIST=_id
         return True
         
 
@@ -146,10 +147,8 @@ class database:
         '''
             Recieves a database, joins the elements and return the difference
         '''
-        db_id = [self.ID_LIST[0]]+db.ID_LIST[:3]
-        if db_id==self.ID_LIST:
+        if not self.upd_id(str(db.ID_LIST)):
             return None
-        self.ID_LIST = db_id
         difference=database()
         difference.CATEGORIES = {x:y for x,y in db.CATEGORIES.items() if (x,y) not in self.CATEGORIES.items()}
         difference.USERS = {x:y for x,y in db.USERS.items() if (x,y) not in self.USERS.items()}

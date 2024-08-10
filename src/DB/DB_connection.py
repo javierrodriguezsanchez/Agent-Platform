@@ -21,7 +21,7 @@ class DB_connection:
         self.DB=database()
 
         self.CHORD_PROTOCOLS=[
-            'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE'
+            'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE','ALIVE'
         ]
 
     def start(self):
@@ -60,7 +60,6 @@ class DB_connection:
         sock.bind(('', self.PORT))
         print("Servidor unicast esperando mensajes...")
         for data, addr in receive_multiple_messages(sock):
-            print(f"Mensaje recibido de {addr}: {data.decode()}")
             # Crear un nuevo hilo para manejar la interacción del cliente
             thread = threading.Thread(target=self.answer, args=(data, addr, sock))
             thread.start()
@@ -76,6 +75,7 @@ class DB_connection:
             db=self.ask(f'MIGRATE_LEFT\1{hash(self.IP)}',self.SUCCESSOR)
             if db!=None:
                 self.DB=parseDB(db)
+                return
 
 
     def get_successors(self):
@@ -105,7 +105,7 @@ class DB_connection:
             ip=self.search_nodes()
             if ip==None:
                 return
-            if try_for_ip(cache_ip):
+            if try_for_ip(ip):
                 return
 
 
@@ -176,7 +176,7 @@ class DB_connection:
         while True:
             while self.IP==self.SUCCESSOR: pass #no check if only node
             self.FINGER_TABLE[0]=self.SUCCESSOR
-            my_id=self.IP
+            my_id=hash(self.IP)
             previus_ip = self.SUCCESSOR
             next_ip=None
 
@@ -191,7 +191,7 @@ class DB_connection:
 
             #CHECKING THE LAST NODE
             if next_ip!=None:
-                alive=self.ask(alive,next_ip)
+                alive=self.ask(f"ALIVE",next_ip)
                 if alive!=None:
                     continue
 
@@ -212,7 +212,7 @@ class DB_connection:
 
         while True:
             while self.SUCCESSOR == self.IP: pass
-            
+
             # SUCCESSOR CHANGE
             if successor != self.SUCCESSOR:
                 successor = self.SUCCESSOR        
@@ -224,7 +224,7 @@ class DB_connection:
                 aux = self.DB.time()
                 logs = self.DB.give_logs(sync_time)
                 sync_time = aux
-                successor_alive = self.ask(f"SYNCRONIZE\1{logs}", successor) != None
+                successor_alive = self.ask(f"SYNCRONIZE\1{self.DB.id()}\1{logs}", successor) != None
                 if successor_alive:
                     self.DB.forget()
 
@@ -258,7 +258,6 @@ class DB_connection:
         # SEND ANSWER
         stop_event.set()
         wait_thread.join()
-        print(f'Enviando {response} a {addr}')
         send_message(sock, response.encode(), addr)
 
 
@@ -274,16 +273,18 @@ class DB_connection:
         instructions=message.split('\1')
         
         if instructions[0] == 'MIGRATE_LEFT':
-            return self.DB.migrate_left(instructions[1])
+            return str(self.DB.migrate_left(instructions[1]))
         
         if instructions[0] == 'MIGRATE_RIGHT':
-            new_data = self.DB.join(instructions[1])
+            new_data = self.DB.join(parseDB(instructions[1]))
             if new_data!=None:
                 self.ask(f'MIGRATE_RIGHT\1{new_data}', self.SUCCESSOR)
             return ''
             
         if instructions[0] == 'SYNCRONIZE':
-            self.DB.execute_logs(instructions[1])
+            if self.DB.upd_id(instructions[1]):
+                print("ID Cambiado")
+            self.DB.execute_logs(instructions[2])
             return ''
         
         if instructions[0] == 'GIVE_SUCCESSORS':
@@ -292,7 +293,7 @@ class DB_connection:
         if instructions[0] == 'SUCCESSOR':
             data_id=int(instructions[1])         
             while True:
-                if is_successor(hash(self.IP),data_id,self.SUCCESSOR):
+                if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
                     return self.SUCCESSOR
                 behind=[x for x in self.FINGER_TABLE if hash(x)<=data_id]
                 if behind==[]:
@@ -301,3 +302,5 @@ class DB_connection:
                 answer=self.ask(message,ip)
                 if answer != None:
                     return answer
+                
+        return ''

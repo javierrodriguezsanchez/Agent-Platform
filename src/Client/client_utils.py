@@ -78,8 +78,8 @@ def send_message(sock, message, addr):
 
 def receive_message(sock):
     chunks = []
+    sock.settimeout(10)
     while True:
-        sock.settimeout(10)
         try:
             chunk, _ = sock.recvfrom(1024)
         except:
