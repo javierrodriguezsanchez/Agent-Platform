@@ -18,7 +18,7 @@ class DB_connection:
         self.SS=self.IP #successor's successor ip
         self.SSS=self.IP #successor's successor's successor ip
         self.FINGER_TABLE=[self.IP]*160
-        self.DB=database()
+        self.DB=database(hash(self.IP))
 
         self.CHORD_PROTOCOLS=[
             'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE','ALIVE'
@@ -137,7 +137,7 @@ class DB_connection:
 
     def print_info(self):
         while True:
-            input()
+            a=input()
             print()
             print("Nodo en ", self.IP)
             print(hash(self.IP))
@@ -147,6 +147,12 @@ class DB_connection:
             print("DB")
             print(self.DB)
             print()
+
+            if a == 'FT':
+                print("FINGER TABLE")
+                for x in range(len(self.FINGER_TABLE)):
+                    print(f"{x+1}: {self.FINGER_TABLE[x]}")
+                print()
 
 
     def mcast_run(self):
@@ -173,10 +179,10 @@ class DB_connection:
 
 
     def update_finger_table(self):
+        my_id=hash(self.IP)
         while True:
             while self.IP==self.SUCCESSOR: pass #no check if only node
             self.FINGER_TABLE[0]=self.SUCCESSOR
-            my_id=hash(self.IP)
             previus_ip = self.SUCCESSOR
             next_ip=None
 
@@ -185,6 +191,7 @@ class DB_connection:
                 data=(my_id + 2 ** i) % (2 ** 160)
                 next_ip=self.ask(f"SUCCESSOR\1{data}", previus_ip)
                 if next_ip==None:#The node disconnected
+                    print(f"No.{i-1} node from FT at {previus_ip} disconnected")
                     break
                 self.FINGER_TABLE[i]=next_ip
                 previus_ip=next_ip
@@ -194,6 +201,8 @@ class DB_connection:
                 alive=self.ask(f"ALIVE",next_ip)
                 if alive!=None:
                     continue
+                else:
+                    print(f'No. {160} disconnected')
 
             #REMOVING THE NODE DISCONNECTED
             if self.FINGER_TABLE[-1]==previus_ip:
@@ -240,8 +249,14 @@ class DB_connection:
             #FIND NEW SUCCESSOR
             if successor!=self.SUCCESSOR:
                 continue
+            print("Sucesor desconectado")
             self.SUCCESSOR=self.SS
-            self.SSS=self.SS
+            if self.IP!=self.SUCCESSOR:
+                self.SS=self.SSS  
+            else:
+                self.DB.upd_id(str([hash(self.IP)]*4))
+                self.SS=self.IP
+                self.SSS=self.IP
         
 
     # CREATES RESPONSE TO MESSAGE
@@ -293,12 +308,14 @@ class DB_connection:
         if instructions[0] == 'SUCCESSOR':
             data_id=int(instructions[1])         
             while True:
-                if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
-                    return self.SUCCESSOR
+                #if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
+                #    return self.SUCCESSOR
                 behind=[x for x in self.FINGER_TABLE if hash(x)<=data_id]
                 if behind==[]:
                     behind=self.FINGER_TABLE
                 ip = max(behind, key = lambda x:hash(x))
+                if ip==self.IP:
+                    return self.SUCCESSOR
                 answer=self.ask(message,ip)
                 if answer != None:
                     return answer

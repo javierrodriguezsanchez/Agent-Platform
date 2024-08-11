@@ -97,7 +97,7 @@ class database:
         db.CATEGORIES={x:y for x,y in self.CATEGORIES if not is_successor(id, x, self.ID_LIST[0])}
         db.USERS={x:y for x,y in self.USERS if not is_successor(id, x, self.ID_LIST[0])}
         db.AGENTS={x:y for x,y in self.AGENTS if not is_successor(id, x, self.ID_LIST[0])}
-        db.ID_LIST=self.ID_LIST
+        db.ID_LIST=[x for x in self.ID_LIST]
         db.ID_LIST[0]=id
         return db
 
@@ -111,16 +111,15 @@ class database:
         db.CATEGORIES={x:y for x,y in self.CATEGORIES if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
         db.USERS={x:y for x,y in self.USERS if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
         db.AGENTS={x:y for x,y in self.AGENTS if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
-        db.ID_LIST=self.ID_LIST
+        db.ID_LIST= [x for x in self.ID_LIST]
         return db 
 
 
     def upd_id(self, reference_id):
         _id=[self.ID_LIST[0]]+ast.literal_eval(reference_id)[:-1]
+        _id=[int(x) for x in _id]
         if self.ID_LIST == _id:
             return False
-        print(_id)
-        print(self.ID_LIST)
         self.ID_LIST=_id
         return True
         
@@ -153,7 +152,7 @@ class database:
         difference.CATEGORIES = {x:y for x,y in db.CATEGORIES.items() if (x,y) not in self.CATEGORIES.items()}
         difference.USERS = {x:y for x,y in db.USERS.items() if (x,y) not in self.USERS.items()}
         difference.AGENTS = {x:y for x,y in db.AGENTS.items() if (x,y) not in self.AGENTS.items()}
-        difference.ID_LIST = self.ID_LIST
+        difference.ID_LIST = [x for x in self.ID_LIST]
         
         for category in difference.CATEGORIES.keys():
             self.CATEGORIES[category]=difference.CATEGORIES[category]
