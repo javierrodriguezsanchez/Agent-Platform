@@ -51,6 +51,7 @@ class DB_connection:
         data = receive_message(sock)
         if data!=None:
             return data.decode()
+        print(f"Error en comunicacion con {ip} en {message}")
         return data
 
 
@@ -137,7 +138,6 @@ class DB_connection:
 
     def print_info(self):
         while True:
-            a=input()
             print()
             print("Nodo en ", self.IP)
             print(hash(self.IP))
@@ -147,7 +147,7 @@ class DB_connection:
             print("DB")
             print(self.DB)
             print()
-
+            a=input()
             if a == 'FT':
                 print("FINGER TABLE")
                 for x in range(len(self.FINGER_TABLE)):
@@ -202,8 +202,7 @@ class DB_connection:
                 if alive!=None:
                     continue
                 else:
-                    print(f'No. {160} disconnected')
-
+                    print(f'No. {160} node from FT at {previus_ip} disconnected')
             #REMOVING THE NODE DISCONNECTED
             if self.FINGER_TABLE[-1]==previus_ip:
                 self.FINGER_TABLE[-1]=self.IP
@@ -249,7 +248,7 @@ class DB_connection:
             #FIND NEW SUCCESSOR
             if successor!=self.SUCCESSOR:
                 continue
-            print("Sucesor desconectado")
+            print(f"Sucesor {self.SUCCESSOR} desconectado")
             self.SUCCESSOR=self.SS
             if self.IP!=self.SUCCESSOR:
                 self.SS=self.SSS  
