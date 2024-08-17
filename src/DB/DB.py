@@ -98,7 +98,7 @@ class database:
         db.USERS={x:y for x,y in self.USERS if not is_successor(id, x, self.ID_LIST[0])}
         db.AGENTS={x:y for x,y in self.AGENTS if not is_successor(id, x, self.ID_LIST[0])}
         db.ID_LIST=[x for x in self.ID_LIST]
-        db.ID_LIST[0]=id
+        db.ID_LIST[0]=int(id)
         return db
 
 
@@ -148,20 +148,14 @@ class database:
         '''
         if not self.upd_id(str(db.ID_LIST)):
             return None
-        difference=database()
-        difference.CATEGORIES = {x:y for x,y in db.CATEGORIES.items() if (x,y) not in self.CATEGORIES.items()}
-        difference.USERS = {x:y for x,y in db.USERS.items() if (x,y) not in self.USERS.items()}
-        difference.AGENTS = {x:y for x,y in db.AGENTS.items() if (x,y) not in self.AGENTS.items()}
-        difference.ID_LIST = [x for x in self.ID_LIST]
-        
-        for category in difference.CATEGORIES.keys():
-            self.CATEGORIES[category]=difference.CATEGORIES[category]
-        for user in difference.USERS.keys():
-            self.USERS[user]=difference.USERS[user]
-        for agent in difference.AGENTS.keys():
-            self.AGENTS[agent]=difference.AGENTS[agent]
+        for category in db.CATEGORIES.keys():
+            self.CATEGORIES[category]=db.CATEGORIES[category]
+        for user in db.USERS.keys():
+            self.USERS[user]=db.USERS[user]
+        for agent in db.AGENTS.keys():
+            self.AGENTS[agent]=db.AGENTS[agent]
 
-        return difference
+        return self
     
 
     def __str__(self):

@@ -239,12 +239,38 @@ class server:
         
         while len(self.DB_IP)!=0:
             ip=self.DB_IP[get_successor(self.hash_ip, h_ref)-1]    
+            right_node_ip=self.ask_successor_for_id(h_ref,ip)
+            if right_node_ip==None:
+                self.DB_IP.remove(ip)
             # Enviar mensajes al servidor usando la dirección unicast
-            send_message(sock, message.encode(), (ip, self.DB_PORT))       
+            send_message(sock, message.encode(), (right_node_ip, self.DB_PORT))       
             # Esperar respuesta
             data = receive_message(sock)
             if data!=None:
                 return data
-            self.DB_IP.remove(ip)
 
         return None
+    
+    def ask_successor_for_id(self,id, initial_ip):
+        '''
+            Ask for the successor, skip messages chain
+            If the ip is not connected, return None
+        '''
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        path=[]
+        ip=initial_ip
+        while True:
+            send_message(sock, f"SUCCESSOR\1{id}".encode(), (ip,self.DB_PORT))
+            data = receive_message(sock)
+            if data==None:
+                if len(path)==0:#THE INITIAL IP DISCONNECTED
+                    print(f"Error en comunicacion con {ip} en SUCCESSOR\1{id}")
+                    return None
+                ip=path.pop() #BACKTRACK TO PREVIOUS IP
+                continue
+            results=data.decode().split('\1')
+            if results[0]=='FINAL': #FINAL ANSWER
+                return results[1]
+            path.append(ip) #PARCIAL ANSWER CASE, APPENDING TO THE PATH
+            ip=results[1]
+        

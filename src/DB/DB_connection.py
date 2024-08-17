@@ -51,9 +51,35 @@ class DB_connection:
         data = receive_message(sock)
         if data!=None:
             return data.decode()
-        print(f"Error en comunicacion con {ip} en {message}")
+        print(f"Error en comunicacion con {ip}")
         return data
 
+
+    def ask_successor_for_id(self,id, initial_ip):
+        '''
+            Ask for the successor, skip messages chain
+            If the ip is not connected, return None
+        '''
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        path=[]
+        ip=initial_ip
+        while True:
+            send_message(sock, f"SUCCESSOR\1{id}".encode(), (ip,self.PORT))
+            data = receive_message(sock)
+            if data==None:
+                if len(path)==0:#THE INITIAL IP DISCONNECTED
+                    print(f"Error en comunicacion con {ip} en SUCCESSOR\1{id}")
+                    return None
+                ip=path.pop() #BACKTRACK TO PREVIOUS IP
+                continue
+            results=data.decode().split('\1')
+            if results[0]=='FINAL': #FINAL ANSWER
+                return results[1]
+            if results[0]==self.IP:
+                return False
+            path.append(ip) #PARCIAL ANSWER CASE, APPENDING TO THE PATH
+            ip=results[1]
+        
 
     def run(self):
         #RUNS THE SERVER
@@ -83,7 +109,7 @@ class DB_connection:
         #TRYS TO FIND THE SUCCESSORS BASED ON EXISTING IP
         def try_for_ip(ip): #RETURNS FALSE IF IP DISCONNECTED
             while True:
-                successor=self.ask(f"SUCCESSOR\1{hash(self.IP)}",ip)
+                successor=self.ask_successor_for_id(hash(self.IP),ip)
                 if successor==None:
                     return False #NODE DOESNT EXIST
                 other_successors=self.ask(f"GIVE_SUCCESSORS",successor)
@@ -172,8 +198,8 @@ class DB_connection:
             if data=='ALIVE':
                 ip=addr[0]
                 if is_successor(self.IP, ip, self.SUCCESSOR):
+                    print(f'Sucesor cambiado de {self.SUCCESSOR} a {ip}')
                     self.SUCCESSOR=ip
-                    print(f'Sucesor descubierto en ip {self.SUCCESSOR}')
             # Answer
             sock.sendto(self.IP.encode(), addr)
 
@@ -189,10 +215,11 @@ class DB_connection:
             #UPDATING ALL POSSITIONS
             for i in range(1,160):
                 data=(my_id + 2 ** i) % (2 ** 160)
-                next_ip=self.ask(f"SUCCESSOR\1{data}", previus_ip)
+                next_ip=self.ask_successor_for_id(data, previus_ip)
                 if next_ip==None:#The node disconnected
-                    print(f"No.{i-1} node from FT at {previus_ip} disconnected")
                     break
+                if next_ip==False:
+                    next_ip=self.SUCCESSOR
                 self.FINGER_TABLE[i]=next_ip
                 previus_ip=next_ip
 
@@ -201,8 +228,7 @@ class DB_connection:
                 alive=self.ask(f"ALIVE",next_ip)
                 if alive!=None:
                     continue
-                else:
-                    print(f'No. {160} node from FT at {previus_ip} disconnected')
+
             #REMOVING THE NODE DISCONNECTED
             if self.FINGER_TABLE[-1]==previus_ip:
                 self.FINGER_TABLE[-1]=self.IP
@@ -225,14 +251,15 @@ class DB_connection:
             if successor != self.SUCCESSOR:
                 successor = self.SUCCESSOR        
                 sync_time = self.DB.time()
-                successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB.migrate_right()}",successor)
+                successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB.migrate_right()}",successor)!=None
+                time.sleep(2)
 
             # SYNCRONIZE WITH SUCCESSOR
             else:
                 aux = self.DB.time()
                 logs = self.DB.give_logs(sync_time)
                 sync_time = aux
-                successor_alive = self.ask(f"SYNCRONIZE\1{self.DB.id()}\1{logs}", successor) != None
+                successor_alive = (self.ask(f"SYNCRONIZE\1{self.DB.id()}\1{logs}", successor) != None)
                 if successor_alive:
                     self.DB.forget()
 
@@ -243,12 +270,14 @@ class DB_connection:
                     following_successors = following_successors.split('\1')
                     self.SS = following_successors[0]
                     self.SSS = following_successors[1]
+                    time.sleep(2)
                     continue
+
 
             #FIND NEW SUCCESSOR
             if successor!=self.SUCCESSOR:
                 continue
-            print(f"Sucesor {self.SUCCESSOR} desconectado")
+            print(f"Sucesor {self.SUCCESSOR} desconectado. Actualizado a {self.SS}")
             self.SUCCESSOR=self.SS
             if self.IP!=self.SUCCESSOR:
                 self.SS=self.SSS  
@@ -292,12 +321,15 @@ class DB_connection:
         if instructions[0] == 'MIGRATE_RIGHT':
             new_data = self.DB.join(parseDB(instructions[1]))
             if new_data!=None:
-                self.ask(f'MIGRATE_RIGHT\1{new_data}', self.SUCCESSOR)
+                def stabilize():
+                    time.sleep(1)
+                    self.ask(f'MIGRATE_RIGHT\1{new_data}', self.SUCCESSOR)
+                thread=threading.Thread(target=stabilize)
+                thread.start()
             return ''
             
         if instructions[0] == 'SYNCRONIZE':
-            if self.DB.upd_id(instructions[1]):
-                print("ID Cambiado")
+            self.DB.upd_id(instructions[1])
             self.DB.execute_logs(instructions[2])
             return ''
         
@@ -307,16 +339,14 @@ class DB_connection:
         if instructions[0] == 'SUCCESSOR':
             data_id=int(instructions[1])         
             while True:
-                #if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
-                #    return self.SUCCESSOR
+                if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
+                    return f"FINAL\1{self.SUCCESSOR}"
                 behind=[x for x in self.FINGER_TABLE if hash(x)<=data_id]
                 if behind==[]:
                     behind=self.FINGER_TABLE
                 ip = max(behind, key = lambda x:hash(x))
                 if ip==self.IP:
-                    return self.SUCCESSOR
-                answer=self.ask(message,ip)
-                if answer != None:
-                    return answer
+                    return f"FINAL\1{self.SUCCESSOR}"
+                return f"PARCIAL\1{ip}"
                 
         return ''
