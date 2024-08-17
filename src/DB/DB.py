@@ -146,16 +146,15 @@ class database:
         '''
             Recieves a database, joins the elements and return the difference
         '''
-        if not self.upd_id(str(db.ID_LIST)):
-            return None
         for category in db.CATEGORIES.keys():
             self.CATEGORIES[category]=db.CATEGORIES[category]
         for user in db.USERS.keys():
             self.USERS[user]=db.USERS[user]
         for agent in db.AGENTS.keys():
             self.AGENTS[agent]=db.AGENTS[agent]
-
-        return self
+        if not self.upd_id(str(db.ID_LIST)):
+            return False
+        return True
     
 
     def __str__(self):
