@@ -1,488 +1,345 @@
 import socket
-import struct
 import threading
-import ast
-from DB import DB, parseDB
-from DB_utils import *
 import time
-default_ip=['172.17.0.2']
-
-'''
-Crear funcion para encontrar successor y antecesor
-Crear funcion separate y forget en DB
-Modificar copias en insercion, modificacion y eliminacion
-Hacer el see around y el finger table
-'''
+import struct
+from DB_utils import *
+from DB import database, parseDB
 
 class DB_connection:
-    def __init__(self,port,mcast_port,mcast_grp):
-        # Basic information about the node
-        # --------------------------------
+    def __init__(self, info):
+        self.MCAST_GRP = info['MULTICAST GROUP'] 
+        self.MCAST_PORT = info['MULTICAST PORT']
+        self.PORT = info['PORT']
+        self.CACHE_NODES=info['CACHE NODES']
         self.IP = socket.gethostbyname(socket.gethostname())
-        self.PORT=port
-        self.MCAST_PORT=mcast_port
-        self.MCAST_GRP=mcast_grp
+        
+        
+        self.SUCCESSOR=self.IP
+        self.SS=self.IP #successor's successor ip
+        self.SSS=self.IP #successor's successor's successor ip
         self.FINGER_TABLE=[self.IP]*160
-        self.DB=DB()
-        self.S_COPY=DB()
-        self.SS_COPY=DB()
-        print(f"Creando nodo en IP {self.IP}")
-        self.lock = threading.Lock()
+        self.DB=database(hash(self.IP))
 
-        # Gets the information about the successors
-        # -----------------------------------------
-        self.SUCCESSOR=None
-        self.SS=None
-        self.SSS=None
-        self.get_successors()
+        self.CHORD_PROTOCOLS=[
+            'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE','ALIVE'
+        ]
 
-        # Fill finger table
-        # -----------------
-        if self.SUCCESSOR!=self.IP:
-            ft_thread=threading.Thread(target=self.get_finger_table)
-            ft_thread.start()
-            self.migrate()
-        if self.SUCCESSOR==self.IP:
-            print("No se pudo hallar ningun nodo")
-            
-        print(f"Mi sucesor es {self.SUCCESSOR}")
-        print(f"El sucesor de mi sucesor es {self.SS}")
-        self.DB.add_client(self.IP,self.IP,self.IP)
-
-        #Running the server and the heartbeats
-        #-------------------------------------
-        print_node=threading.Thread(target=self.print_node)
-        print_node.start()
-        hearbeat_thread=threading.Thread(target=self.heartbeats)
-        hearbeat_thread.start()
-        check_copies_thread=threading.Thread(target=self.check_copies)
-        check_copies_thread.start()
-        upd_ft_thread=threading.Thread(target=self.update_finger_table)
-        upd_ft_thread.start()
+    def start(self):
+        self.get_data()
+        finger_table_thread=threading.Thread(target=self.update_finger_table)
+        hearbeats_thread=threading.Thread(target=self.heartbeats)
+        syncronize_thread=threading.Thread(target=self.syncronize)
+        mcast_server_thread=threading.Thread(target=self.mcast_run)
+        info_thread=threading.Thread(target=self.print_info)
+        finger_table_thread.start()
+        hearbeats_thread.start()
+        info_thread.start()
+        syncronize_thread.start()
+        mcast_server_thread.start()
         self.run()
 
-    def print_node(self):
-        while True:
-            input()
-            print()
-            print("Nodo en ", self.IP)
-            print(hash(self.IP))
-            print("DB")
-            print(self.DB)
-            print()
-            print("Sucesor: ",self.SUCCESSOR)
-            print("S_COPY")
-            print(self.S_COPY)
-            print()
-            print("Sucesor del sucesor: ",self.SS)
-            print("SS_COPY")
-            print(self.SS_COPY)
-            print()
-            print("Sucesor del sucesor del sucesor: ",self.SSS)
-            print()
-    
-    def heartbeats(self):
-        while True:
-            self.mcast_messege('ALIVE')
-            time.sleep(5)
 
-    def mcast_messege(self,messege):
+    #BASIC CONNECTION FUNCTIONS
+    #--------------------------
+    def ask(self,message,ip):
         '''
-            Try to discover other nodes via multicast. Return false if nobody answer
+            Send the message to the ip and recieves the answer
+            If the ip is not connected, return None
+        '''
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        send_message(sock, message.encode(), (ip,self.PORT))
+        data = receive_message(sock)
+        if data!=None:
+            return data.decode()
+        print(f"Error en comunicacion con {ip}")
+        return data
+
+
+    def ask_successor_for_id(self,id, initial_ip):
+        '''
+            Ask for the successor, skip messages chain
+            If the ip is not connected, return None
+        '''
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        path=[]
+        ip=initial_ip
+        while True:
+            send_message(sock, f"SUCCESSOR\1{id}".encode(), (ip,self.PORT))
+            data = receive_message(sock)
+            if data==None:
+                if len(path)==0:#THE INITIAL IP DISCONNECTED
+                    print(f"Error en comunicacion con {ip}")
+                    return None
+                ip=path.pop() #BACKTRACK TO PREVIOUS IP
+                continue
+            results=data.decode().split('\1')
+            if results[0]=='FINAL': #FINAL ANSWER
+                return results[1]
+            path.append(ip) #PARCIAL ANSWER CASE, APPENDING TO THE PATH
+            ip=results[1]
+        
+
+    def run(self):
+        #RUNS THE SERVER
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(('', self.PORT))
+        print("Servidor unicast esperando mensajes...")
+        for data, addr in receive_multiple_messages(sock):
+            # Crear un nuevo hilo para manejar la interacción del cliente
+            thread = threading.Thread(target=self.answer, args=(data, addr, sock))
+            thread.start()
+
+
+    #GET INFO ABOUT THE REST OF THE NODES
+    #------------------------------------
+    def get_data(self):
+        while True:
+            self.get_successors()
+            if self.IP==self.SUCCESSOR:
+                return
+            db=self.ask(f'MIGRATE_LEFT\1{hash(self.IP)}',self.SUCCESSOR)
+            if db!=None:
+                self.DB=parseDB(db)
+                return
+
+
+    def get_successors(self):
+        #TRYS TO FIND THE SUCCESSORS BASED ON EXISTING IP
+        def try_for_ip(ip): #RETURNS FALSE IF IP DISCONNECTED
+            while True:
+                successor=self.ask_successor_for_id(hash(self.IP),ip)
+                if successor==None:
+                    return False #NODE DOESNT EXIST
+                other_successors=self.ask(f"GIVE_SUCCESSORS",successor)
+                if other_successors==None:
+                    continue #SUCCESSOR DISCONNECTED
+                #SUCCESS
+                aux=other_successors.split('\1')
+                self.SUCCESSOR=successor
+                self.SS=aux[0]
+                self.SSS=aux[1]
+                return True
+        
+        #TRYING WITH THE CACHE NODES
+        for cache_ip in self.CACHE_NODES:
+            if try_for_ip(cache_ip):
+                return
+        
+        #TRYING VIA MULTICAST
+        while True:
+            ip=self.search_nodes()
+            if ip==None:
+                return
+            if try_for_ip(ip):
+                return
+
+
+    def search_nodes(self):
+        '''
+            Use multicast to search the another nodes.
         '''
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
 
-        #sock.sendto(messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
-        send_message(sock, messege.encode(), (self.MCAST_GRP, self.MCAST_PORT))
-        # Esperar respuesta del servidor
+        sock.sendto(b"DISCOVER", (self.MCAST_GRP, self.MCAST_PORT))
         sock.settimeout(5)
         try:
-            #data, _ = sock.recvfrom(1024)
-            data, _ = receive_message(sock)
-            ip = data.decode()
-            return ip
+            _, addr = sock.recvfrom(1024)
+            return addr[0]
         except socket.timeout:
             return None
 
-    def connect(self,messege,ip):
-        '''
-            Send the messege to the ip
-        '''
-        # Crear socket unicast para comunicaciones futuras
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Enviar mensajes al servidor usando la dirección unicast
-        #sock.sendto(messege.encode(), (ip, self.PORT))        
-        send_message(sock, messege.encode(), (ip, self.PORT))    
-        # Esperar respuesta        
-        sock.settimeout(5)
-        try:
-            #data, _ = sock.recvfrom(1024)
-            data, _ = receive_message(sock)
-            return data.decode()
-        except socket.timeout:
-            return None
+
+    # MAIN THREADS
+    # ------------
+    def heartbeats(self):
+        while True:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+            sock.sendto('ALIVE'.encode(), (self.MCAST_GRP, self.MCAST_PORT))
+            time.sleep(5)
+
+
+    def print_info(self):
+        while True:
+            print()
+            print("Nodo en ", self.IP)
+            print(hash(self.IP))
+            print("Sucesor: ",self.SUCCESSOR)
+            print("Sucesor del sucesor: ",self.SS)
+            print("Sucesor del sucesor del sucesor: ",self.SSS)
+            print("DB")
+            print(self.DB)
+            print()
+            a=input()
+            if a == 'FT':
+                print("FINGER TABLE")
+                for x in range(len(self.FINGER_TABLE)):
+                    print(f"{x+1}: {self.FINGER_TABLE[x]}")
+                print()
+
 
     def mcast_run(self):
-        '''
-            Multicast listening. Make the node able to be discovered
-        '''
         print(f"Escuchando multicast por puerto {self.MCAST_PORT}")
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         sock.bind(('', self.MCAST_PORT))
         mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
-
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        for data, addr in receive_multiple_messages(sock):
-        #while True:
-            #data, addr = sock.recvfrom(1024)
-            #data, addr = receive_message(sock)
+        while True:
+            #listening
+            data, addr = sock.recvfrom(1024)
             data=data.decode()
             if addr[0]==self.IP:
                 continue
             if data=='ALIVE':
                 ip=addr[0]
-                if ip>self.IP and ip<self.SUCCESSOR or (self.IP>=self.SUCCESSOR and self.IP<ip) or (self.IP>=self.SUCCESSOR and self.SUCCESSOR>ip) or self.IP==self.SUCCESSOR:
+                if is_successor(self.IP, ip, self.SUCCESSOR):
+                    print(f'Sucesor cambiado de {self.SUCCESSOR} a {ip}')
                     self.SUCCESSOR=ip
-                    print(f'Sucesor descubierto en ip {self.SUCCESSOR}')
-            # Enviar respuesta
-            #sock.sendto(self.IP.encode(), addr)
-            send_message(sock, self.IP.encode(), addr)
-    
-    def run(self):
-        """
-            Mount the server to listen messeges
-        """
-        print(f"Escuchando por puerto {self.PORT}")
+            # Answer
+            sock.sendto(self.IP.encode(), addr)
 
-        # Starting multicast server thread
-        mcast_thread=threading.Thread(target=self.mcast_run)
-        mcast_thread.start()
-
-        # Starting normal server
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('', self.PORT))
-        
-        for data, addr in receive_multiple_messages(sock):
-        #while True:
-            #data, addr = sock.recvfrom(1024)
-            #data, addr = receive_message(sock)
-            
-            # Crear un nuevo hilo para manejar la interacción del cliente
-            answer_thread = threading.Thread(target=self.answer, args=(data, addr, sock))
-            answer_thread.start()
-
-    def answer(self, data, addr, sock):
-        """
-            Gives the response to the client
-        """
-        messege=data.decode()
-        answer=''
-        instruction=messege.split('\1')
-        if instruction[0]=='GET_SUCCESSOR':
-            answer=self.get_successor_for_data(hash(instruction[1]))   
-        elif instruction[0]=='SUCCESSORS':
-            answer=self.SUCCESSOR+'\1'+self.SS
-        elif instruction[0]=='MIGRATE':
-            with self.lock:
-                answer=str(self.DB)+'\1'+str(self.S_COPY)
-        elif instruction[0]=='RECOVER_MIDDLE':
-            with self.lock:
-                answer=str(self.S_COPY)
-            thread=threading.Thread(target=self.DB.join, args=(instruction[1],True))
-            thread.start()
-        elif instruction[0]=='RECOVER_MIDDLE_2':
-            self.DB.join(instruction[1],True)
-            self.DB.join(instruction[2],True)
-            with self.lock:
-                answer=str(self.DB)+'\1'+str(self.S_COPY)
-                
-        elif instruction[0]=='SYNCRONIZE':
-            answer=f'{self.DB.time}\1{self.DB.get_logs(int(instruction[1]))}\1{self.S_COPY.time}\1{self.S_COPY.get_logs(int(instruction[2]))}'
-        elif instruction[0]=='UPDATE_TIME':
-            if instruction[1]=='1':
-                logs=ast.literal_eval(instruction[3])
-                for log in logs:
-                    self.DB.edit_database(log)
-                self.DB.time=int(instruction[2])
-            else:
-                logs=ast.literal_eval(instruction[3])
-                for log in logs:
-                    self.S_COPY.edit_database(log)
-                self.S_COPY.time=int(instruction[2])
-            answer=''
-        elif instruction[0]=='ALIVE':
-            answer='True'
-        else:
-            print(f"Entro a la database: {instruction}")
-            answer=self.DB.edit_database(messege)
-        #sock.sendto(answer.encode(), addr)
-
-        if messege=='':
-            print("Mensaje vacio recibido")
-        send_message(sock, answer.encode(), addr)
-
-    def get_reference_node(self):
-        #using cache nodes
-        for ip in default_ip:
-            ALIVE=self.connect(f'ALIVE',ip)
-            if ALIVE!=None:
-                return ip
-        #using multicast
-        ip=self.mcast_messege('DISCOVER')       
-        return ip
-    
-    def get_successor_for_data(self,data_id):
-        if self.IP==self.SUCCESSOR:
-            return self.IP
-        _id=hash(self.IP)
-        answer=''
-        if self.IP==self.SUCCESSOR:
-            return self.IP
-        with self.lock:
-            successor=self.SUCCESSOR
-        if _id==data_id:
-            answer=self.IP
-        elif _id<data_id and data_id<=hash(successor):
-            answer=successor
-        elif _id<data_id and data_id>=hash(successor) and _id>hash(successor):
-            answer=successor
-        else:
-            prev=self.FINGER_TABLE[0]
-            try_index=None
-            for i in range(1,160):
-                ip=self.FINGER_TABLE[i]
-                if hash(ip)==data_id:
-                    answer=ip
-                    break
-                if hash(ip)>data_id and hash(ip)>hash(prev):
-                    answer=self.connect(f'GET_SUCCESSOR\1{data_id}',prev)
-                    if answer==None:
-                        try_index=i
-                    break
-                if hash(prev)<data_id and hash(prev)>hash(ip):
-                    answer=self.connect(f'GET_SUCCESSOR\1{data_id}',prev)
-                    if answer==None:
-                        try_index=i
-                    break
-                prev=ip
-        if answer=='':
-            answer= self.connect(f'GET_SUCCESSOR\1{data_id}',self.FINGER_TABLE[-1])
-            if answer==None:
-                try_index=160
-        if answer!=None:
-            return answer
-        for i in range(try_index-1,-1,-1):
-            answer= self.connect(f'GET_SUCCESSOR\1{data_id}',self.FINGER_TABLE[i])
-            if answer!=None:
-                return answer
-        return self.IP
-
-    def get_successors(self, base_ip=None):
-        '''
-            Gets the successors for my ip
-        '''
-        successors=[self.IP]
-        i=0
-        ip=base_ip
-        while len(successors)!=5:
-            if ip==None:#No reference node
-                ip=self.get_reference_node()
-                if ip==None:#No nodes
-                    successors=[self.IP]*5
-                continue
-            s=self.connect(f'GET_SUCCESSOR\1{successors[i]}',ip)
-            print("Respuesta al mensaje: ",f'GET_SUCCESSOR\1{successors[i]}',": ",s)
-            if s==None:#reference node disconected
-                if i==0:
-                    ip=None
-                    continue
-                i-=1
-                successors.pop()
-                ip=successors[-1]
-            print("Sucesor descubierto",s)
-            successors.append(s)
-            ip=s
-            i+=1
-        print("Sucesores: ", successors)
-        self.SUCCESSOR=successors[1]
-        self.SS=successors[2]
-        self.SSS=successors[3]
-
-    def get_finger_table(self):
-        self.FINGER_TABLE[0]=self.SUCCESSOR
-        _id=hash(self.IP)
-        i=1
-        while i<160:
-            data=(_id + 2 ** i) % (2 ** 160)
-            ip=self.connect(f'GET_SUCCESSOR\1{data}',self.FINGER_TABLE[i-1])
-            if ip==None and i!=1:
-                i-=1
-                continue
-            elif ip==None:
-                self.get_successors(self.SS)
-                if self.SUCCESSOR==self.IP:
-                    self.FINGER_TABLE[0]=self.IP
-                    break
-                continue
-            self.FINGER_TABLE[i] = ip
-            i+=1
 
     def update_finger_table(self):
+        my_id=hash(self.IP)
         while True:
-            no_response=[]
-            change=False
-            with self.lock:
-                self.FINGER_TABLE[0]=self.SUCCESSOR
-            _id=hash(self.IP)
-            i=1
-            while i<160:
-                data=(_id + 2 ** i) % (2 ** 160)
-                with self.lock:
-                    previus_ip=self.FINGER_TABLE[i-1]
-                if previus_ip==self.IP or previus_ip in no_response:
-                    i+=1
+            while self.IP==self.SUCCESSOR: pass #no check if only node
+            self.FINGER_TABLE[0]=self.SUCCESSOR
+            previus_ip = self.SUCCESSOR
+            next_ip=None
+
+            #UPDATING ALL POSSITIONS
+            for i in range(1,160):
+                data=(my_id + 2 ** i) % (2 ** 160)
+                next_ip=self.ask_successor_for_id(data, previus_ip)
+                if next_ip==None:#The node disconnected
+                    break
+                self.FINGER_TABLE[i]=next_ip
+                previus_ip=next_ip
+
+            #CHECKING THE LAST NODE
+            if next_ip!=None:
+                alive=self.ask(f"ALIVE",next_ip)
+                if alive!=None:
                     continue
-                ip=self.connect(f'GET_SUCCESSOR\1{data}',previus_ip)
-                if ip==None:
-                    print(f"{previus_ip} no responde")
-                    no_response.append(previus_ip)
-                    i+=1
-                    continue
-                with self.lock:
-                    if self.FINGER_TABLE[i] != ip:
-                        change=True
-                    self.FINGER_TABLE[i] = ip
-                i+=1
-            for j in range(0,160):
-                if self.FINGER_TABLE[j] in no_response:
-                    if j!=0:
-                        self.FINGER_TABLE[j]=self.FINGER_TABLE[j-1]
-                        continue
-                    else:
-                        x=self.FINGER_TABLE[0]
-                        while x!=self.SUCCESSOR:
-                            pass
-            if change:
-                print('La finger_table ha sido actualizada')
 
-    def migrate(self):
+            #REMOVING THE NODE DISCONNECTED
+            if self.FINGER_TABLE[-1]==previus_ip:
+                self.FINGER_TABLE[-1]=self.IP
+            for i in range(158,-1,-1):
+                if self.FINGER_TABLE[i]==previus_ip:
+                    self.FINGER_TABLE[i]=self.FINGER_TABLE[i+1]
+
+
+    def syncronize(self):
+        '''
+            Keeps successors list and copies update
+        '''
+        successor = self.SUCCESSOR
+        sync_time = self.DB.time()
+
         while True:
-            successor_db=self.connect("MIGRATE",self.SUCCESSOR)
-            if successor_db==None:
-                self.get_successors(self.SS)
-                if self.SUCCESSOR==self.IP:
-                    return
-                continue
-            break
-        successor_db=successor_db.split('\1')
-        print("Resultado de la migracion: ",successor_db)
-        self.DB=parseDB(successor_db[0])
-        self.S_COPY=parseDB(successor_db[0])
-        self.SS_COPY=parseDB(successor_db[1])
-        self.connect(f"FORGET\1{self.IP}\1{self.SUCCESSOR}",self.SUCCESSOR)
-        self.DB.forget(hash(self.IP),hash(self.SUCCESSOR))
+            while self.SUCCESSOR == self.IP: pass
 
-    def check_copies(self):
-        
-        while True:
-            while self.SUCCESSOR==self.IP:pass
+            # SUCCESSOR CHANGE
+            if successor != self.SUCCESSOR:
+                successor = self.SUCCESSOR        
+                sync_time = self.DB.time()
+                successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB.migrate_right()}",successor)!=None
+                time.sleep(2)
 
-            successor_alive=self.update_copies()
-            
+            # SYNCRONIZE WITH SUCCESSOR
+            else:
+                aux = self.DB.time()
+                logs = self.DB.give_logs(sync_time)
+                sync_time = aux
+                successor_alive = (self.ask(f"SYNCRONIZE\1{self.DB.id()}\1{logs}", successor) != None)
+                if successor_alive:
+                    self.DB.forget()
+
+            # UPDATE SUCCESSORS' SUCCESSOR
             if successor_alive:
-                successors=self.connect('SUCCESSORS',self.SUCCESSOR)
-                if successors==None:
+                following_successors = self.ask("GIVE_SUCCESSORS",successor)
+                if following_successors != None:
+                    following_successors = following_successors.split('\1')
+                    self.SS = following_successors[0]
+                    self.SSS = following_successors[1]
+                    time.sleep(2)
                     continue
-                successors=successors.split('\1')
-                if self.SS!=successors[0]:
-                    print(f'Actualizando sucesor del sucesor: {successors[0]}')
-                self.SS=successors[0]
-                if self.SSS!=successors[1]:
-                    print(f'Actualizando sucesor del sucesor del sucesor: {successors[1]}')
-                self.SSS=successors[1]
-                continue
 
-            print(f"El sucesor {self.SUCCESSOR} desaparecio")
-            
-            if self.SS==self.IP:
-                print("Nuevo sucesor: ", self.IP)
-                self.SUCCESSOR=self.IP
-                print("Nuevo sucesor del sucesor: ", self.IP)
-                self.SS=self.IP
-                print("Nuevo sucesor del sucesor del sucesor: ", self.IP)
-                self.SSS=self.IP
-                self.DB.join(self.S_COPY, False)
-                self.S_COPY=DB()
-                self.SS_COPY=DB()
-                continue
 
-            sss=self.connect('RECOVER_MIDDLE\1'+str(self.S_COPY),self.SS)
-            if sss!=None:
-                self.SUCCESSOR=self.SS
-                print("Nuevo sucesor: ", self.SUCCESSOR)
-                self.SS=self.SSS
-                self.S_COPY.join(self.SS_COPY,False)
-                self.SS_COPY=parseDB(sss)
-                successors=self.connect('SUCCESSORS',self.SUCCESSOR)
-                if successors==None:
-                    continue
-                successors=successors.split('\1')
-                self.SS=successors[0]
-                self.SSS=successors[1]
-                print("Nuevo sucesor del sucesor: ", self.SS)
-                print("Nuevo sucesor del sucesor del sucesor: ", self.SSS)
+            #FIND NEW SUCCESSOR
+            if successor!=self.SUCCESSOR:
                 continue
-            
-            if self.IP==self.SSS:
-                print("Nuevo sucesor: ", self.IP)
-                print("Nuevo sucesor del sucesor: ", self.IP)
-                print("Nuevo sucesor del sucesor del sucesor: ", self.IP)
-                self.DB.join(self.S_COPY, False)
-                self.DB.join(self.S_COPY, False)
-                self.S_COPY=DB()
-                self.SS_COPY=DB()
-                self.SUCCESSOR=self.IP
+            print(f"Sucesor {self.SUCCESSOR} desconectado. Actualizado a {self.SS}")
+            self.SUCCESSOR=self.SS
+            if self.IP!=self.SUCCESSOR:
+                self.SS=self.SSS  
+            else:
+                self.DB.upd_id(str([hash(self.IP)]*4))
                 self.SS=self.IP
                 self.SSS=self.IP
+        
+
+    # CREATES RESPONSE TO MESSAGE
+    # ---------------------------
+    def answer(self,data,addr,sock):
+        stop_event = threading.Event()
+        wait_thread = threading.Thread(target=self.wait, args=(addr, sock, stop_event))
+        wait_thread.start()
+        instruction=data.decode().split('\1')[0]
+        if instruction in self.CHORD_PROTOCOLS:
+            response=self.chord_instruction(data.decode())
+        else:
+            response=self.DB.edit_database(data.decode())
+        # SEND ANSWER
+        stop_event.set()
+        wait_thread.join()
+        send_message(sock, response.encode(), addr)
+
+
+    def wait(self, addr, sock, stop_event):
+        try:
+            while not stop_event.is_set():
+                sock.sendto(b"\6", addr)
+        except:
+            pass
+
+
+    def chord_instruction(self,message):
+        instructions=message.split('\1')
+        
+        if instructions[0] == 'MIGRATE_LEFT':
+            return str(self.DB.migrate_left(instructions[1]))
+        
+        if instructions[0] == 'MIGRATE_RIGHT':
+            new_data = self.DB.join(parseDB(instructions[1]))
+            if new_data:
+                def stabilize():
+                    time.sleep(1)
+                    self.ask(f'MIGRATE_RIGHT\1{new_data}', self.SUCCESSOR)
+                thread=threading.Thread(target=stabilize)
+                thread.start()
+            return ''
+            
+        if instructions[0] == 'SYNCRONIZE':
+            self.DB.upd_id(instructions[1])
+            self.DB.execute_logs(instructions[2])
+            return ''
+        
+        if instructions[0] == 'GIVE_SUCCESSORS':
+            return f'{self.SUCCESSOR}\1{self.SS}'
+        
+        if instructions[0] == 'SUCCESSOR':
+            data_id=int(instructions[1])
+            if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
+                return f"FINAL\1{self.SUCCESSOR}"
+            behind=[x for x in self.FINGER_TABLE if hash(x)<=data_id]
+            if behind==[]:
+                behind=self.FINGER_TABLE
+            ip = max(behind, key = lambda x:hash(x))
+            return f"PARCIAL\1{ip}"
                 
-
-            sss=self.connect('RECOVER_MIDDLE_2\1'+str(self.S_COPY)+'\1'+str(self.SS_COPY),self.SSS)
-            data=sss.split('\1')
-            self.S_COPY=data[0]
-            self.SS_COPY=data[1]
-            self.SUCCESSOR=self.SSS
-            print("Nuevo sucesor: ", self.SUCCESSOR)
-            successors=self.connect('SUCCESSORS',self.SUCCESSOR)
-            successors=successors.split('\1')
-            self.SS=successors[0]
-            self.SSS=successors[1]
-            print("Nuevo sucesor del sucesor: ", self.SS)
-            print("Nuevo sucesor del sucesor del sucesor: ", self.SSS)
-
-    def update_copies(self):
-        s_state=self.connect(f'SYNCRONIZE\1{self.S_COPY.time}\1{self.SS_COPY.time}', self.SUCCESSOR)
-        if s_state==None:
-            return None
-        s_state=s_state.split('\1')
-        t1=threading.Thread(target=self.syncronize, args=(int(s_state[0]), s_state[1],self.S_COPY, True))
-        t2=threading.Thread(target=self.syncronize, args=(int(s_state[2]), s_state[3],self.SS_COPY, False))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
-        return True
-
-    def syncronize(self, time, logs,db, ss):
-        if time==db.time:
-            return
-        if time>db.time:
-            for log in ast.literal_eval(logs):
-                print("Haciendo log: ",log)
-                db.edit_database(log)
-            db.time=time
-            return
-        self.connect(f'UPDATE_TIME\1{1 if ss else 2}\1{db.time}\1{db.get_logs(time)}',self.SUCCESSOR)
+        return ''

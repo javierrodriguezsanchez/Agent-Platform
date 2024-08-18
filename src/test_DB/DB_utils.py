@@ -1,6 +1,3 @@
-import hashlib
-
-
 def send_message(sock, message, addr):
     chunk_size = 1024
     sock.sendto(b"\6", addr)
@@ -11,8 +8,8 @@ def send_message(sock, message, addr):
 
 def receive_message(sock):
     chunks = []
-    sock.settimeout(10)
     while True:
+        sock.settimeout(10)
         try:
             chunk, _ = sock.recvfrom(1024)
         except:
@@ -44,15 +41,3 @@ def receive_multiple_messages(sock):
         else:
             datas[addr] = []
             datas[addr].append(chunk)
-
-
-def is_successor(ip, new_ip, successor):
-    normal_case = ip < new_ip  and  new_ip < successor
-    no_other_node_case = ip==successor
-    corner_case_1 = successor < ip  and  ip < new_ip
-    corner_case_2 = successor < ip  and  new_ip < successor
-    return normal_case or no_other_node_case or corner_case_1 or corner_case_2
-
-
-def hash(key):
-    return int(hashlib.sha1(key.encode()).hexdigest(), 16)

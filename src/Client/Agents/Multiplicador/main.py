@@ -16,17 +16,17 @@ class Multiplicador:
     def __init__(self):
         return
     
-    def multiplicate(self,call_agent, args):
+    def multiplicate(self, search_agents, call_agent, args):
         a, b= args
         return str(int(a)*int(b))
     
-    def multiplicate_list(self,call_agent, args):
+    def multiplicate_list(self, search_agents, call_agent, args):
         result=1
         for x in args:
             result*=x
         return result
 '''
-    def use_sum_multiplication(self, call_agent, args):
+    def use_sum_multiplication(self, search_agents, call_agent, args):
         a, b= args
         a=int(a)
         b=int(b)

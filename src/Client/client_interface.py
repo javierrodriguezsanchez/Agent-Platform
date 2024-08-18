@@ -12,7 +12,8 @@ class client_interface:
 
     def run_interface(self):
         self.login()
-        self.update_agents_interface()
+        print("Reiniciando agentes...")
+        self.connection.update_agents(self.client_name)
         option=0
         
         while option != 3:
@@ -44,6 +45,30 @@ class client_interface:
             if option==2:
                 self.create_agent_interface()
 
+    def login(self):
+        
+        print(green)
+        print("Bienvenido a la plataforma multiagente")
+        print("--------------------------------------")
+        print(reset)
+        
+        while True:
+            print()
+            name=self.client_name
+            if self.client_name==None:
+                name=input(green + "Introduzca su nombre de usuario: " + reset)
+                if ('\1' or '\2' or '_') in name:
+                    print(red + "Nombre inválido. Inténtelo de nuevo" + reset)
+                    continue
+
+            response=self.connection.subscribe(name).split('\1')
+            if response[0]=='ERROR':
+                print(red + f"El siguiente error ha ocurrido: {response[1]}" + reset)
+                continue
+            self.client_name = name
+            save('name',self.client_name)
+            return
+    
     def search_interface(self):
 
         print(green)
@@ -91,33 +116,6 @@ class client_interface:
         if option !=count+1:
             self.interact_interface(response[option-1])
 
-    def login(self):
-        
-        print(green)
-        print("Bienvenido a la plataforma multiagente")
-        print("--------------------------------------")
-        print(reset)
-        
-        while True:
-            print()
-            name=self.client_name
-            if self.client_name==None:
-                name=input(green + "Introduzca su nombre de usuario: " + reset)
-                if ('\1' or '\2' or '_') in name:
-                    print(red + "Nombre inválido. Inténtelo de nuevo" + reset)
-                    continue
-            password=input(green + 'Introduzca su password: ' + reset)
-            if ('\1' or '\2' or '_') in password:
-                print(red + "Password inválido. Inténtelo de nuevo" + reset)
-                continue
-            response=self.connection.start(name,password,self.client_name==None).split('\1')
-            if response[0]=='ERROR':
-                print(red + f"El siguiente error ha ocurrido: {response[1]}" + reset)
-                continue
-            self.client_name = name
-            save('name',self.client_name)
-            return
-    
     def interact_interface(self, agent):
         num_actions=len(agent['actions'])
         print()
@@ -149,7 +147,7 @@ class client_interface:
         print(reset)
 
         args=input()
-        response=self.connection.interact(agent['name'],agent['actions'][option-1],args).split('\1')
+        response=self.connection.exec(agent['name'],agent['actions'][option-1],args).split('\1')
         if response[0]=='ERROR':
             print(red)
             print(f"El siguiente error ha ocurrido: {response[1]}")
@@ -157,12 +155,6 @@ class client_interface:
         print(response[1])
         input(green + "Press enter to continue: ")
         print(reset)
-
-    def update_agents_interface(self):
-        print("Reiniciando agentes...")
-        logs=self.connection.update_agents(self.client_name)
-        for log in logs:
-            print(log)
 
     def create_agent_interface(self):
         agents=get_folders('Agents/')
