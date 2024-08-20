@@ -123,7 +123,7 @@ class connection:
                 print(f"Error al actualizar el agente {agent} en la plataforma: {response[1]}")
                 continue
             print(f'Se ha actualizado satisfactoriamente la informacion del agente {agent} en la plataforma')
-            self.agents[info['name']]=get_agent_instance(agent)
+            self.AGENTS[info['name']]=get_agent_instance(agent)
 
         save('agents',[x for x in agents if x not in to_remove])
         return
@@ -147,8 +147,8 @@ class connection:
         if decode_response[0]=='ERROR':
            return response
         
-        with self.lock:
-            self.agents[info['name']]=get_agent_instance(agent)
+        #with self.lock:
+        self.AGENTS[info['name']]=get_agent_instance(agent)
         return response
     
 
@@ -175,8 +175,8 @@ class connection:
         wait_thread.start()
 
         #GET THE RESPONSE
-        with self.lock:
-            action=getattr(self.agents[request[1]],request[2])
+        #with self.lock:
+        action=getattr(self.AGENTS[request[1]],request[2])
         response=action(self.search, self.exec, decode_str(request[3]))
         if response==None:
             response='ERROR\1La accion no se pudo llevar a cabo'
