@@ -151,7 +151,7 @@ class server:
         for agent in relevant_results:
             result=self.connect_database(f"GET_INFO_FOR_AGENT\1{agent}", agent).decode()
             if result!=None and result!='DISCONNECTED':
-                final_results.append(result)
+                final_results.append(ast.literal_eval(result))
         return final_results
 
 

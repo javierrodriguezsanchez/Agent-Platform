@@ -62,9 +62,9 @@ class database:
         
         if instructions[0]=='ADD_AGENT' or instructions[0]=='UPDATE_AGENT':
             self.AGENTS[instructions[1]]={
-                'info':instructions[1],
+                'info':instructions[2],
                 'connected':True,
-                'ip':instructions[2]
+                'ip':instructions[3]
             }
             
         if instructions[0]=='REMOVE_AGENT_TO_ACTION':
