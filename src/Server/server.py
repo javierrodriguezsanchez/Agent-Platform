@@ -157,7 +157,8 @@ class server:
 
     def create_agent(self, name, info, ip):
         #ADD THE AGENT TO THE CATEGORY INFO
-        agent_info=ast.parse(info)
+        agent_info=ast.literal_eval(info)
+        #print(f"--------------{agent_info}-----------")
         actions=agent_info['actions']
         for action in actions:
             a=self.connect_database(f"NEW_AGENT_TO_ACTION\1{action}\1{name}", action)
