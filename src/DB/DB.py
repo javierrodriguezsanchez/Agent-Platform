@@ -51,7 +51,8 @@ class database:
                 self.USERS[instructions[1]]=instructions[2]
                 self.LOGS[self.LAMPORT_CLOCK] = messege
                 self.LAMPORT_CLOCK+=1
-            return str(exist)
+                return str(True)
+            return str(False)
         
         if instructions[0]=='NEW_AGENT_TO_ACTION':
             if instructions[1] not in self.CATEGORIES.keys():
