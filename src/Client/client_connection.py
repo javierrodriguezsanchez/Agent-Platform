@@ -171,7 +171,8 @@ class connection:
             return
         
         #RETURN WAIT MESSAGES, USEFULL TO DIFFER THE CASE OF LATE RESPONSE AND DISCONNECTION 
-        wait_thread = threading.Thread(target=self.wait, args=(addr, sock))
+        stop_event = threading.Event()
+        wait_thread = threading.Thread(target=self.wait, args=(addr, sock, stop_event))
         wait_thread.start()
 
         #GET THE RESPONSE
@@ -184,12 +185,13 @@ class connection:
             response=f'SUCESS\1{response}'
         
         #STOP THE WAITING AND ANSWER THE CLIENT
-        wait_thread._stop()
+        stop_event.set()
+        wait_thread.join()
         send_message(sock, response.encode(), addr)
 
-    def wait(self, addr, sock):
+    def wait(self, addr, sock, stop_event):
         try:
-            while True:
+            while not stop_event.is_set():
                 sock.sendto(b"\6", addr)
         except:
             pass
