@@ -142,7 +142,7 @@ class server:
     #-------
     def search_agents(self,query):
         #GET RELEVANT AGENTS FOR QUERY
-        relevant_results=self.connect_database(f'GET_AGENTS\1{query}', query)
+        relevant_results=self.connect_database(f'GET_AGENTS\1{query}', query).decode()
         if relevant_results==None:
             return []
         #GET INFO FOR AGENTS
