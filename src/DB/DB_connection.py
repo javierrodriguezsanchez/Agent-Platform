@@ -319,7 +319,7 @@ class DB_connection:
             if new_data:
                 def stabilize():
                     time.sleep(1)
-                    self.ask(f'MIGRATE_RIGHT\1{new_data}', self.SUCCESSOR)
+                    self.ask(f'MIGRATE_RIGHT\1{self.DB}', self.SUCCESSOR)
                 thread=threading.Thread(target=stabilize)
                 thread.start()
             return ''
