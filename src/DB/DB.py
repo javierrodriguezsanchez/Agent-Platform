@@ -95,9 +95,9 @@ class database:
         '''
         db = database()
         db.LAMPORT_CLOCK=self.LAMPORT_CLOCK
-        db.CATEGORIES={x:y for x,y in self.CATEGORIES if not is_successor(id, x, self.ID_LIST[0])}
-        db.USERS={x:y for x,y in self.USERS if not is_successor(id, x, self.ID_LIST[0])}
-        db.AGENTS={x:y for x,y in self.AGENTS if not is_successor(id, x, self.ID_LIST[0])}
+        db.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
+        db.USERS={x:y for x,y in self.USERS.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
+        db.AGENTS={x:y for x,y in self.AGENTS.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
         db.ID_LIST=[x for x in self.ID_LIST]
         db.ID_LIST[0]=int(id)
         return db
@@ -107,11 +107,12 @@ class database:
         '''
             Give data to new successor
         '''
+        return self
         db = database()
         db.LAMPORT_CLOCK=self.LAMPORT_CLOCK
-        db.CATEGORIES={x:y for x,y in self.CATEGORIES if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
-        db.USERS={x:y for x,y in self.USERS if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
-        db.AGENTS={x:y for x,y in self.AGENTS if is_successor(self.ID_LIST[2], x, self.ID_LIST[0])}
+        db.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
+        db.USERS={x:y for x,y in self.USERS.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
+        db.AGENTS={x:y for x,y in self.AGENTS.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
         db.ID_LIST= [x for x in self.ID_LIST]
         return db 
 
@@ -126,15 +127,16 @@ class database:
         
 
     def forget(self):
+        return
         if self.ID_LIST[3] in self.ID_LIST[:2]:
             return
-        self.CATEGORIES={x:y for x,y in self.CATEGORIES if is_successor(self.ID_LIST[3], x, self.ID_LIST[0])}
-        self.USERS={x:y for x,y in self.USERS if is_successor(self.ID_LIST[3], x, self.ID_LIST[0])}
-        self.AGENTS={x:y for x,y in self.AGENTS if is_successor(self.ID_LIST[3], x, self.ID_LIST[0])}
+        self.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if is_successor(self.ID_LIST[3], hash(x), self.ID_LIST[0])}
+        self.USERS={x:y for x,y in self.USERS.items() if is_successor(self.ID_LIST[3], hash(x), self.ID_LIST[0])}
+        self.AGENTS={x:y for x,y in self.AGENTS.items() if is_successor(self.ID_LIST[3], hash(x), self.ID_LIST[0])}
         
 
     def give_logs(self, time):
-        return [y for x,y in self.LOGS if x>=time]
+        return [y for x,y in self.LOGS.items() if x>=time]
 
 
     def execute_logs(self, logs):

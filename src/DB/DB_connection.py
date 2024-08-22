@@ -312,7 +312,7 @@ class DB_connection:
         instructions=message.split('\1')
         
         if instructions[0] == 'MIGRATE_LEFT':
-            return str(self.DB.migrate_left(instructions[1]))
+            return str(self.DB.migrate_left(int(instructions[1])))
         
         if instructions[0] == 'MIGRATE_RIGHT':
             new_data = self.DB.join(parseDB(instructions[1]))

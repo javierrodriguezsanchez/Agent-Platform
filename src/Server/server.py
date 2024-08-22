@@ -12,7 +12,6 @@ class server:
         self.AGENTS_PORT = info['AGENTS PORT']
         self.IP = socket.gethostbyname(socket.gethostname())
         self.DB_IP = sorted(info['DATABASE IP'], key=lambda x:hash(x))
-        self.hash_ip=[hash(x) for x in self.DB_IP]
         self.DB_GRP = info['DATABASE GROUP']
         self.DB_PORT = info['DATABASE PORT']
         self.DB_MCAST_PORT = info['DATABASE MULTICAST PORT']
@@ -64,16 +63,14 @@ class server:
             data=data.decode()
             if data=='ALIVE':
                 ip=addr[0]
-                key=hash(ip)
-                pos=get_successor(self.hash_ip,key)
-                if ip==self.DB_IP[pos-1]:
+                if ip in self.DB_IP:
                     continue
+                key=hash(ip)
+                pos=get_successor([hash(x) for x in self.DB_IP],key)
                 self.DB_IP.insert(pos,ip)
-                self.hash_ip.insert(pos,key)
                 while len(self.DB_IP)>self.CACHE_LIMIT:
-                    out_index=smallest_difference_index(self.hash_ip)
+                    out_index=smallest_difference_index([hash(x) for x in self.DB_IP])
                     self.DB_IP.pop(out_index)
-                    self.hash_ip.pop(out_index)
 
 
     def mcast_run(self):
@@ -239,10 +236,16 @@ class server:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         
         while len(self.DB_IP)!=0:
-            ip=self.DB_IP[get_successor(self.hash_ip, h_ref)-1]    
+            try:
+                ip=self.DB_IP[get_successor([hash(x) for x in self.DB_IP], h_ref)-1]    
+            except:
+                print("EXPLOSION ",get_successor([hash(x) for x in self.DB_IP], h_ref))
+                print(self.DB_IP)
+                ip=self.DB_IP[0]
             right_node_ip=self.ask_successor_for_id(h_ref,ip)
             if right_node_ip==None:
                 self.DB_IP.remove(ip)
+                continue
             # Enviar mensajes al servidor usando la dirección unicast
             send_message(sock, message.encode(), (right_node_ip, self.DB_PORT))       
             # Esperar respuesta
