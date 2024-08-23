@@ -86,13 +86,13 @@ class server:
         while True:
             _, addr = sock.recvfrom(1024)
             # Enviar respuesta
-            sock.sendto(f'SUCESS\1{self.IP}'.encode(), addr)
+            sock.sendto(f'SUCCESS\1{self.IP}'.encode(), addr)
 
 
     #HANDLE CLIENT
     #-------------
     def handle_client(self, data, addr, sock):
-        sucess=True
+        success=True
         response=''
         messege=data.decode().split('\1')
         stop_event = threading.Event()
@@ -103,27 +103,27 @@ class server:
         if messege[0]=='SUBSCRIBE':
             result =self.connect_database(f"INSERT_CLIENT\1{messege[1]}\1{addr[0]}", messege[1])
             decoded_result = result.decode()
-            sucess= (decoded_result=='True')
-            response='' if sucess else 'El nombre ya existe'
+            success= (decoded_result=='True')
+            response='' if success else 'El nombre ya existe'
         elif messege[0]=='QUERY':
             response=self.search_agents(messege[1])
         elif messege[0]=='CREATE':
-            response, sucess = self.create_agent(messege[1],messege[2],addr[0])
+            response, success = self.create_agent(messege[1],messege[2],addr[0])
         elif messege[0]=='UPDATE':
-            response, sucess = self.update_agent(messege[1], messege[2], addr[0])
+            response, success = self.update_agent(messege[1], messege[2], addr[0])
         elif messege[0]=='DELETE':
-            response, sucess = self.delete_agent(messege[1])
+            response, success = self.delete_agent(messege[1])
         elif messege[0]=='EXEC':
-            response, sucess = self.exec_action(messege[1],messege[2],messege[3])
+            response, success = self.exec_action(messege[1],messege[2],messege[3])
         else:
             response='Protocolo incorrecto'
-            sucess=False
+            success=False
 
         # SEND ANSWER
         stop_event.set()
         wait_thread.join()
         print(f'Enviando {response} a {addr}')
-        result='SUCESS' if sucess else 'ERROR'
+        result='SUCCESS' if success else 'ERROR'
         send_message(sock, f'{result}\1{response}'.encode(), addr)
 
 

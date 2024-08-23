@@ -182,7 +182,7 @@ class connection:
         if response==None:
             response='ERROR\1La accion no se pudo llevar a cabo'
         else:
-            response=f'SUCESS\1{response}'
+            response=f'SUCCESS\1{response}'
         
         #STOP THE WAITING AND ANSWER THE CLIENT
         stop_event.set()
