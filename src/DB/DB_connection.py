@@ -21,7 +21,7 @@ class DB_connection:
         self.DB=database(hash(self.IP))
 
         self.CHORD_PROTOCOLS=[
-            'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE','ALIVE'
+            'MIGRATE_LEFT', 'SUCCESSOR', 'GIVE_SUCCESSORS', 'MIGRATE_RIGHT', 'SYNCRONIZE','ALIVE',"GUESS_SUCCESSOR"
         ]
 
     def start(self):
@@ -214,7 +214,7 @@ class DB_connection:
             #UPDATING ALL POSSITIONS
             for i in range(1,160):
                 data=(my_id + 2 ** i) % (2 ** 160)
-                next_ip=self.ask_successor_for_id(data, previus_ip)
+                next_ip=self.ask(f"GUESS_SUCCESSOR\1{data}",previus_ip)
                 if next_ip==None:#The node disconnected
                     break
                 self.FINGER_TABLE[i]=next_ip
@@ -333,7 +333,17 @@ class DB_connection:
         
         if instructions[0] == 'GIVE_SUCCESSORS':
             return f'{self.SUCCESSOR}\1{self.SS}'
-        
+
+        if instructions[0] == 'GUESS_SUCCESSOR':
+            data_id=int(instructions[1])
+            if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
+                return self.SUCCESSOR
+            after=[x for x in self.FINGER_TABLE if hash(x)>=data_id]
+            if after==[]:
+                after=self.FINGER_TABLE
+            ip = min(after, key = lambda x:hash(x))
+            return ip
+
         if instructions[0] == 'SUCCESSOR':
             data_id=int(instructions[1])
             if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):

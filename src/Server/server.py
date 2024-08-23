@@ -223,7 +223,8 @@ class server:
         if data==None:
             self.connect_database(f"AGENT_DISCONNECTED\1{agent}", agent)
             return ('El agente se encuentra fuera de linea' , False)
-        return (data.decode(), True)
+        data=data.decode().split('\1')
+        return (data[1], data[0]=='SUCCESS')
 
         
     #DATABASE CONNECTION
