@@ -23,7 +23,10 @@ class database:
 
     # BASIC OPERATIONS OF THE DATABASE
     # --------------------------------
-    def edit_database(self,messege):
+    def edit_database(self,messege, log_id=None):
+        if log_id==None:
+            log_id=self.ID_LIST[0]
+
         instructions=messege.split('\1')
 
         if instructions[0]=='GET_AGENTS':
@@ -49,7 +52,7 @@ class database:
             exist=(instructions[1] in self.USERS)
             if not exist:
                 self.USERS[instructions[1]]=instructions[2]
-                self.LOGS[self.LAMPORT_CLOCK] = messege
+                self.LOGS[self.LAMPORT_CLOCK] = (messege,log_id)
                 self.LAMPORT_CLOCK+=1
                 return str(True)
             return str(False)
@@ -81,7 +84,7 @@ class database:
                 self.AGENTS[instructions[1]]['connected']=False
             
         #ADD LOG
-        self.LOGS[self.LAMPORT_CLOCK] = messege
+        self.LOGS[self.LAMPORT_CLOCK] = (messege,log_id)
         self.LAMPORT_CLOCK+=1
         
         #DEFAULT RESPONSE
@@ -89,34 +92,6 @@ class database:
         
     # SPECIAL OPERATIONS
     # ------------------
-    def migrate_left(self, id):
-        '''
-            Give data to new anteccessor  
-        '''
-        db = database()
-        db.LAMPORT_CLOCK=self.LAMPORT_CLOCK
-        db.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
-        db.USERS={x:y for x,y in self.USERS.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
-        db.AGENTS={x:y for x,y in self.AGENTS.items() if not is_successor(id, hash(x), self.ID_LIST[0])}
-        db.ID_LIST=[x for x in self.ID_LIST]
-        db.ID_LIST[0]=int(id)
-        return db
-
-
-    def migrate_right(self):
-        '''
-            Give data to new successor
-        '''
-        return self
-        db = database()
-        db.LAMPORT_CLOCK=self.LAMPORT_CLOCK
-        db.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
-        db.USERS={x:y for x,y in self.USERS.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
-        db.AGENTS={x:y for x,y in self.AGENTS.items() if is_successor(self.ID_LIST[2], hash(x), self.ID_LIST[0])}
-        db.ID_LIST= [x for x in self.ID_LIST]
-        return db 
-
-
     def upd_id(self, reference_id):
         _id=[self.ID_LIST[0]]+ast.literal_eval(reference_id)[:-1]
         _id=[int(x) for x in _id]
@@ -127,8 +102,7 @@ class database:
         
 
     def forget(self):
-        return
-        if self.ID_LIST[3] in self.ID_LIST[:2]:
+        if self.ID_LIST[3] in self.ID_LIST[:3]:
             return
         self.CATEGORIES={x:y for x,y in self.CATEGORIES.items() if is_successor(self.ID_LIST[3], hash(x), self.ID_LIST[0])}
         self.USERS={x:y for x,y in self.USERS.items() if is_successor(self.ID_LIST[3], hash(x), self.ID_LIST[0])}
@@ -141,8 +115,10 @@ class database:
 
     def execute_logs(self, logs):
         logs=ast.literal_eval(logs)
-        for log in logs:
-            self.edit_database(log)
+        for log, log_id in logs:
+            if log_id==self.ID_LIST[0]:
+                continue
+            self.edit_database(log,log_id)
 
 
     def join(self, db):

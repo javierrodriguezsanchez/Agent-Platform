@@ -100,6 +100,7 @@ class DB_connection:
             db=self.ask(f'MIGRATE_LEFT\1{hash(self.IP)}',self.SUCCESSOR)
             if db!=None:
                 self.DB=parseDB(db)
+                self.DB.ID_LIST[0]=hash(self.IP)
                 return
 
 
@@ -247,7 +248,7 @@ class DB_connection:
             if successor != self.SUCCESSOR:
                 successor = self.SUCCESSOR        
                 sync_time = self.DB.time()
-                successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB.migrate_right()}",successor)!=None
+                successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB}",successor)!=None
                 time.sleep(2)
 
             # SYNCRONIZE WITH SUCCESSOR
@@ -277,6 +278,7 @@ class DB_connection:
             self.SUCCESSOR=self.SS
             if self.IP!=self.SUCCESSOR:
                 self.SS=self.SSS  
+                self.SSS=self.IP
             else:
                 self.DB.upd_id(str([hash(self.IP)]*4))
                 self.SS=self.IP
@@ -312,7 +314,7 @@ class DB_connection:
         instructions=message.split('\1')
         
         if instructions[0] == 'MIGRATE_LEFT':
-            return str(self.DB.migrate_left(int(instructions[1])))
+            return str(self.DB)
         
         if instructions[0] == 'MIGRATE_RIGHT':
             new_data = self.DB.join(parseDB(instructions[1]))
