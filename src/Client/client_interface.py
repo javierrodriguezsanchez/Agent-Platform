@@ -152,7 +152,7 @@ class client_interface:
             print(red)
             print(f"El siguiente error ha ocurrido: {response[1]}")
             print(reset)
-        print(response[1])
+        print(response[2])
         input(green + "Press enter to continue: ")
         print(reset)
 
