@@ -139,16 +139,16 @@ class server:
     #-------
     def search_agents(self,query):
         #GET RELEVANT AGENTS FOR QUERY
-        relevant_results=self.connect_database(f'GET_AGENTS\1{query}', query).decode()
+        relevant_results=self.connect_database(f'GET_AGENTS\1{query}', query)
         if relevant_results==None:
             return []
         #GET INFO FOR AGENTS
-        relevant_results=ast.literal_eval(relevant_results)
+        relevant_results=ast.literal_eval(relevant_results.decode())
         final_results=[]
         for agent in relevant_results:
-            result=self.connect_database(f"GET_INFO_FOR_AGENT\1{agent}", agent).decode()
-            if result!=None and result!='DISCONNECTED':
-                final_results.append(ast.literal_eval(result))
+            result=self.connect_database(f"GET_INFO_FOR_AGENT\1{agent}", agent)
+            if result!=None and result.decode()!='DISCONNECTED':
+                final_results.append(ast.literal_eval(result.decode()))
         return final_results
 
 
@@ -174,10 +174,10 @@ class server:
         actual_actions=agent_info['actions']
         #CHECKING CATEGORY CHANGE
         agent_info=ast.parse(info)
-        past_actions=self.connect_database(f"UPDATE_AGENT\1{name}\1{info}\1{ip}", name).decode()
+        past_actions=self.connect_database(f"UPDATE_AGENT\1{name}\1{info}\1{ip}", name)
         if past_actions==None:
             return ('Error de conexion con la base de datos' , False)
-        past_actions=ast.literal_eval(past_actions)
+        past_actions=ast.literal_eval(past_actions.decode())
         #ADDING NEW CATEGORIES
         for new_action in [x for x in actual_actions if x not in past_actions]:
             a=self.connect_database(f"NEW_AGENT_TO_ACTION\1{new_action}\1{name}", new_action)
@@ -193,20 +193,21 @@ class server:
 
     def delete_agent(self, name):
         #REMOVE THE AGENT INFO
-        actions=self.connect_database(f"REMOVE_AGENT\1{name}", name).decode()
+        actions=self.connect_database(f"REMOVE_AGENT\1{name}", name)
         if actions==None:
             return  ('Error de conexion con la base de datos' , False)
         #REMOVE THE AGENTS IN CATEGORY
-        for action in ast.literal_eval(actions):
+        for action in ast.literal_eval(actions.decode()):
             self.connect_database(f"REMOVE_AGENT_TO_ACTION\1{action}\1{name}", action)
         return ('',True)
 
 
     def exec_action(self,agent,action,args):
         #GET IP FROM DATABASE
-        ip=self.connect_database(f"GET_IP_AGENT\1{agent}", agent).decode()
+        ip=self.connect_database(f"GET_IP_AGENT\1{agent}", agent)
         if ip==None:
             return ('Error de conexion con la base de datos' , False)
+        ip = ip.decode()
         if ip=='False':
             return ('El agente no existe' , False)
         if ip=='DISCONNECTED':
