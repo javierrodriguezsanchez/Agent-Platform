@@ -246,7 +246,10 @@ class server:
                 ip=self.DB_IP[0]
             right_node_ip=self.ask_successor_for_id(h_ref,ip)
             if right_node_ip==None:
-                self.DB_IP.remove(ip)
+                try:
+                    self.DB_IP.remove(ip)
+                except:
+                    pass
                 continue
             # Enviar mensajes al servidor usando la dirección unicast
             send_message(sock, message.encode(), (right_node_ip, self.DB_PORT))       

@@ -196,7 +196,7 @@ class DB_connection:
                 continue
             if data=='ALIVE':
                 ip=addr[0]
-                if is_successor(self.IP, ip, self.SUCCESSOR):
+                if is_successor(hash(self.IP), hash(ip), hash(self.SUCCESSOR)):
                     print(f'Sucesor cambiado de {self.SUCCESSOR} a {ip}')
                     self.SUCCESSOR=ip
             # Answer
@@ -348,6 +348,8 @@ class DB_connection:
             data_id=int(instructions[1])
             if is_successor(hash(self.IP),data_id,hash(self.SUCCESSOR)):
                 return f"FINAL\1{self.SUCCESSOR}"
+            #else:
+            #    return f"PARCIAL\1{self.SUCCESSOR}"
             behind=[x for x in self.FINGER_TABLE if hash(x)<=data_id]
             if behind==[]:
                 behind=self.FINGER_TABLE

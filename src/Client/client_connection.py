@@ -177,13 +177,16 @@ class connection:
 
         #GET THE RESPONSE
         #with self.lock:
-        action=getattr(self.AGENTS[request[1]],request[2])
-        response=action(self.search, self.exec, decode_str(request[3]))
-        if response==None:
-            response='ERROR\1La accion no se pudo llevar a cabo'
+        if request[1] in self.AGENTS:
+            action=getattr(self.AGENTS[request[1]],request[2])
+            response=action(self.search, self.exec, decode_str(request[3]))
+            if response==None:
+                response='ERROR\1La accion no se pudo llevar a cabo'
+            else:
+                response=f'SUCCESS\1{response}'
         else:
-            response=f'SUCCESS\1{response}'
-        
+            response='ERROR\1La accion no se pudo llevar a cabo'
+            
         #STOP THE WAITING AND ANSWER THE CLIENT
         stop_event.set()
         wait_thread.join()
