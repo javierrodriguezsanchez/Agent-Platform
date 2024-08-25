@@ -240,14 +240,15 @@ class DB_connection:
         '''
         successor = self.SUCCESSOR
         sync_time = self.DB.time()
-
+        _id=self.DB.ID_LIST
         while True:
             while self.SUCCESSOR == self.IP: pass
 
             # SUCCESSOR CHANGE
-            if successor != self.SUCCESSOR:
+            if successor != self.SUCCESSOR or _id!=self.DB.ID_LIST:
                 successor = self.SUCCESSOR        
                 sync_time = self.DB.time()
+                _id=self.DB.ID_LIST
                 successor_alive = self.ask(f"MIGRATE_RIGHT\1{self.DB}",successor)!=None
                 time.sleep(2)
 
