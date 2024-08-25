@@ -49,7 +49,6 @@ class connection:
         while True:
             # Enviar mensajes al servidor usando la dirección unicast
             addr=(self.SERVER_IP[self.ip_index], self.SERVER_PORT)
-            print('Enviando mensaje a ', addr)        
             send_message(sock, coded_message, addr)
             
             # Esperar respuesta
@@ -186,7 +185,7 @@ class connection:
                 response=f'SUCCESS\1{response}'
         else:
             response='ERROR\1La accion no se pudo llevar a cabo'
-            
+
         #STOP THE WAITING AND ANSWER THE CLIENT
         stop_event.set()
         wait_thread.join()
